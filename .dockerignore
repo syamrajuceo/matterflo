@@ -1,0 +1,45 @@
+# Node modules
+**/node_modules
+**/npm-debug.log
+**/.npm
+
+# Environment files
+**/.env
+**/.env.local
+**/.env.*.local
+
+# Build output
+**/dist
+**/build
+**/.next
+**/.nuxt
+
+# IDE
+**/.vscode
+**/.idea
+**/*.swp
+**/*.swo
+**/*~
+
+# OS files
+**/.DS_Store
+**/Thumbs.db
+
+# Git
+**/.git
+**/.gitignore
+
+# Docker
+**/Dockerfile
+**/docker-compose.yml
+**/.dockerignore
+
+# Testing
+**/coverage
+**/.nyc_output
+
+# Misc
+**/README.md
+**/*.md
+**/LICENSE
+

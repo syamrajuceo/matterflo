@@ -1,0 +1,16 @@
+{
+  "name": "erp-builder",
+  "version": "1.0.0",
+  "description": "ERP Builder Application",
+  "private": true,
+  "scripts": {
+    "test:integration": "npm run test:integration:backend && npm run test:integration:frontend",
+    "test:integration:backend": "cd backend && npm test -- tests/integration/",
+    "test:integration:frontend": "cd frontend && npm run test:e2e",
+    "test:all": "npm run test:integration"
+  },
+  "workspaces": [],
+  "devDependencies": {
+    "shadcn": "^3.5.1"
+  }
+}

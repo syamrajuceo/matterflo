@@ -1,0 +1,319 @@
+# ERP Builder Project Rules
+
+## Tech Stack
+
+### Backend
+- Runtime: Node.js 20.x LTS
+- Framework: Express.js 4.x
+- Language: TypeScript 5.x
+- ORM: Prisma 5.x
+- Validation: Zod
+- Authentication: JWT (jsonwebtoken)
+- Password Hashing: bcrypt (10 rounds)
+- Email: Nodemailer
+- File Upload: Multer
+- Logging: Winston
+- Environment: dotenv
+- CORS: cors
+- Rate Limiting: express-rate-limit
+
+### Frontend
+- Framework: React 19.x
+- Language: TypeScript 5.x
+- Build Tool: Vite 7.x
+- State Management: Zustand 5.x
+- Routing: React Router v7
+- UI Components: Radix UI + Tailwind CSS
+- Styling: Tailwind CSS 4.x
+- Form Management: React Hook Form + Zod
+- HTTP Client: Axios
+- Icons: Lucide React
+
+### Database
+- Primary Database: PostgreSQL 16.x
+- Cache/Events: Redis 7.x
+- File Storage: Local filesystem (Phase 1)
+
+## Coding Standards
+
+### TypeScript
+- Use TypeScript strict mode
+- Always add explicit types (avoid `any`)
+- Use interfaces for object shapes
+- Use enums for constants
+- Use type guards when needed
+- Prefer `interface` over `type` for object types
+
+### Async/Await
+- Always use async/await (never callbacks)
+- Always handle errors with try-catch
+- Use Promise.all() for parallel operations
+- Use Promise.allSettled() when you need all results
+
+### React
+- Use functional components only (no class components)
+- Use arrow functions for components
+- Use hooks (useState, useEffect, useCallback, useMemo)
+- Use React.memo() for expensive components
+- Use custom hooks for reusable logic
+- Always add proper TypeScript types to props
+
+### Error Handling
+- Always add error handling (try-catch)
+- Use custom error classes (AppError, ValidationError, AuthError)
+- Return proper HTTP status codes
+- Log errors with Winston (backend)
+- Show user-friendly error messages (frontend)
+
+### Code Organization
+- One file per module/component
+- Group related functionality together
+- Use barrel exports (index.ts) for modules
+- Keep functions small and focused
+- Use meaningful variable and function names
+
+## File Naming Conventions
+
+### Backend
+- Files: kebab-case (auth.service.ts, task.controller.ts)
+- Classes: PascalCase (AuthService, TaskController)
+- Functions: camelCase (createUser, getTaskById)
+- Constants: UPPER_SNAKE_CASE (MAX_FILE_SIZE, JWT_SECRET)
+- Interfaces: PascalCase with I prefix (IUser, ITask)
+
+### Frontend
+- Components: PascalCase (LoginForm.tsx, TaskBuilder.tsx)
+- Hooks: camelCase with "use" prefix (useAuth.ts, useTaskBuilder.ts)
+- Services: camelCase (auth.service.ts, task.service.ts)
+- Types: PascalCase (User, Task, Flow)
+- Utils: camelCase (helpers.ts, validators.ts)
+
+## Import Order
+
+1. External packages (React, Express, etc.)
+2. Internal modules (from other parts of the app)
+3. Types/interfaces
+4. Styles (CSS imports)
+5. Constants
+
+Example:
+```typescript
+import { Request, Response } from 'express';
+import { z } from 'zod';
+import { authService } from './auth.service';
+import { IUser } from './auth.types';
+import { AppError } from '../../common/errors';
+```
+
+## API Response Format
+
+### Success Response
+```json
+{
+  "success": true,
+  "data": { ... },
+  "message": "Optional success message"
+}
+```
+
+### Error Response
+```json
+{
+  "success": false,
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human readable error message",
+    "details": {}
+  }
+}
+```
+
+## Backend Patterns
+
+### Service Layer
+- All business logic goes in services
+- Services use Prisma for database operations
+- Services throw custom errors
+- Services return typed data
+
+### Controller Layer
+- Controllers handle HTTP requests/responses
+- Controllers call services
+- Controllers use middleware for auth/validation
+- Controllers catch errors and send proper responses
+
+### Middleware
+- Use middleware for cross-cutting concerns
+- Authentication middleware checks JWT
+- Validation middleware uses Zod schemas
+- Error middleware handles all errors
+
+### Database
+- Use Prisma for all database operations
+- Use transactions for multi-step operations
+- Use proper indexes (defined in schema)
+- Use soft deletes (deletedAt field) when needed
+
+## Frontend Patterns
+
+### Component Structure
+- Use functional components
+- Extract logic to custom hooks
+- Use Zustand for global state
+- Use React Hook Form for forms
+- Use Zod for form validation
+
+### State Management
+- Local state: useState
+- Form state: React Hook Form
+- Global state: Zustand
+- Server state: Axios + manual caching
+
+### Styling
+- Use Tailwind CSS for all styling
+- Use dark theme (#0F1419 background, #1A1F2E cards)
+- Primary color: #3B82F6 (blue)
+- Secondary color: #1A1F2E (dark)
+- Use responsive classes (sm:, md:, lg:)
+
+### API Calls
+- Use Axios for HTTP requests
+- Base URL from VITE_API_URL env variable
+- Include JWT token in Authorization header
+- Handle errors gracefully
+- Show loading states
+
+## Security
+
+### Backend
+- Hash passwords with bcrypt (10 rounds)
+- Validate all inputs with Zod
+- Use JWT for authentication
+- Check user permissions
+- Sanitize user inputs
+- Use parameterized queries (Prisma handles this)
+- Rate limit API endpoints
+
+### Frontend
+- Never store passwords in plain text
+- Store JWT in localStorage (or httpOnly cookies)
+- Validate forms before submission
+- Sanitize user inputs
+- Use HTTPS in production
+
+## Testing
+
+### Backend
+- Write unit tests for services
+- Write integration tests for API endpoints
+- Use Jest for testing
+- Use Supertest for API testing
+- Aim for >80% code coverage
+
+### Frontend
+- Write unit tests for components
+- Write integration tests for features
+- Use Vitest for testing
+- Use React Testing Library
+- Test user interactions
+
+## Code Quality
+
+### Linting
+- Use ESLint for code quality
+- Use Prettier for code formatting
+- Fix all linting errors before committing
+- Use TypeScript strict mode
+
+### Git
+- Use conventional commits
+- Commit frequently
+- Write clear commit messages
+- Use feature branches
+
+## Project Structure
+
+### Backend
+```
+backend/src/
+├── modules/          # Feature modules
+│   ├── auth/
+│   ├── tasks/
+│   └── flows/
+├── common/           # Shared utilities
+│   ├── config/
+│   ├── middleware/
+│   ├── utils/
+│   └── errors/
+└── prisma/           # Database schema
+```
+
+### Frontend
+```
+frontend/src/
+├── features/         # Feature modules
+│   ├── auth/
+│   ├── task-builder/
+│   └── flow-builder/
+├── shared/           # Shared components
+│   ├── components/
+│   ├── hooks/
+│   └── utils/
+└── services/         # API services
+```
+
+## Common Patterns
+
+### Error Handling
+```typescript
+try {
+  const result = await service.method();
+  res.json({ success: true, data: result });
+} catch (error) {
+  next(error); // Let error middleware handle it
+}
+```
+
+### Validation
+```typescript
+const schema = z.object({
+  email: z.string().email(),
+  password: z.string().min(6),
+});
+const validated = schema.parse(req.body);
+```
+
+### Authentication
+```typescript
+// Backend middleware
+const token = req.headers.authorization?.replace('Bearer ', '');
+const user = await authService.verifyToken(token);
+req.user = user;
+
+// Frontend
+const token = localStorage.getItem('token');
+axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+```
+
+## Best Practices
+
+1. **Always validate inputs** - Use Zod schemas
+2. **Always handle errors** - Try-catch blocks
+3. **Always type everything** - No `any` types
+4. **Always test your code** - Write tests
+5. **Always document complex logic** - Add comments
+6. **Always use meaningful names** - Clear variable names
+7. **Always follow the patterns** - Consistency is key
+8. **Always commit working code** - Don't commit broken code
+
+## When Generating Code
+
+- Follow the existing patterns in the codebase
+- Use the same naming conventions
+- Use the same error handling approach
+- Use the same response format
+- Add proper TypeScript types
+- Add error handling
+- Add validation where needed
+- Make it testable
+

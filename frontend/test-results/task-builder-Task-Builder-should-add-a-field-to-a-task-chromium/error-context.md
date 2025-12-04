@@ -1,0 +1,46 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - generic [ref=e6]: 🏗️
+    - heading "ERP Builder" [level=1] [ref=e7]
+    - paragraph [ref=e8]: Build your business processes without coding
+  - generic [ref=e11]:
+    - generic [ref=e12]:
+      - generic [ref=e13]: Create account
+      - generic [ref=e14]: Get started with ERP Builder
+    - generic [ref=e16]:
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - generic [ref=e19]:
+            - text: First name
+            - generic [ref=e20]: (optional)
+          - textbox "First name (optional)" [ref=e21]:
+            - /placeholder: John
+            - text: Test
+        - generic [ref=e22]:
+          - generic [ref=e23]:
+            - text: Last name
+            - generic [ref=e24]: (optional)
+          - textbox "Last name (optional)" [ref=e25]:
+            - /placeholder: Doe
+            - text: User
+      - generic [ref=e26]:
+        - generic [ref=e27]: Email address
+        - textbox "Email address" [ref=e28]:
+          - /placeholder: you@example.com
+          - text: admin@test-company.local
+      - generic [ref=e29]:
+        - generic [ref=e30]: Password
+        - textbox "Password" [ref=e31]:
+          - /placeholder: Create a password
+          - text: password123
+      - paragraph [ref=e33]: Too many requests from this IP, please try again later.
+      - button "Create Account" [ref=e34]
+    - paragraph [ref=e36]:
+      - text: Already have an account?
+      - link "Sign in" [ref=e37] [cursor=pointer]:
+        - /url: /login
+  - paragraph [ref=e38]: © 2024 ERP Builder. All rights reserved.
+```
