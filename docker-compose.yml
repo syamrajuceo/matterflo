@@ -94,4 +94,3 @@ volumes:
 networks:
   default:
     name: erp-network
-

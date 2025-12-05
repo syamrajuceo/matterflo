@@ -44,7 +44,11 @@ The ERP Builder backend requires PostgreSQL 16.x to run. You have several option
 
 5. **Update Backend .env**
    ```env
+   # For local PostgreSQL installation (default port 5432)
    DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/erp_builder?schema=public
+   
+   # For Docker Compose (port 5433 to avoid conflicts)
+   # DATABASE_URL=postgresql://postgres:postgres@localhost:5433/erp_builder?schema=public
    ```
 
 ---
@@ -68,9 +72,16 @@ docker compose ps
 ```
 
 This will:
-- Start PostgreSQL on port 5432
+- Start PostgreSQL on port **5433** (external) to avoid conflicts with local PostgreSQL
 - Create database `erp_builder`
 - Default credentials: `postgres/postgres`
+
+**Important:** When using Docker Compose, update your `backend/.env` file:
+```env
+DATABASE_URL=postgresql://postgres:postgres@localhost:5433/erp_builder?schema=public
+```
+
+Note: Port 5433 is used externally to avoid conflicts if you have PostgreSQL installed locally on port 5432.
 
 ---
 

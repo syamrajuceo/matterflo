@@ -444,6 +444,10 @@ class AnalyticsService {
    * Get user activity analytics
    */
   async getUserActivityAnalytics(companyId: string, filters?: AnalyticsFilters): Promise<UserActivityAnalytics> {
+    if (!companyId) {
+      throw new Error('Company ID is required');
+    }
+
     const whereClause: any = { companyId };
 
     const [
@@ -594,6 +598,10 @@ class AnalyticsService {
    * Get company analytics
    */
   async getCompanyAnalytics(companyId: string): Promise<CompanyAnalytics> {
+    if (!companyId) {
+      throw new Error('Company ID is required');
+    }
+
     const [totalDepartments, totalRoles, totalUsers] = await Promise.all([
       prisma.department.count({ where: { companyId } }),
       prisma.role.count({ where: { companyId } }),
@@ -681,7 +689,9 @@ class AnalyticsService {
     const usersByRole = await prisma.user.groupBy({
       by: ['role'],
       where: { companyId },
-      _count: { id: true },
+      _count: {
+        id: true,
+      },
     });
 
     const usersByRoleData = usersByRole.map((group) => {
@@ -692,6 +702,7 @@ class AnalyticsService {
     });
 
     // Users by Department - cannot calculate accurately without department relation
+    // Return empty array since we can't map users to departments without a direct relation
     const usersByDepartmentData: Array<{ departmentName: string; count: number }> = [];
 
     // User Growth

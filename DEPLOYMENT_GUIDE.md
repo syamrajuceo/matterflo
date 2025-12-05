@@ -45,7 +45,9 @@ cp .env.example .env
 **Critical Environment Variables:**
 ```env
 # Database (PostgreSQL)
-DATABASE_URL=postgresql://user:password@localhost:5432/erp_builder
+# For Docker Compose: Use port 5433 (external port to avoid conflicts)
+# For Local PostgreSQL: Use port 5432 (default)
+DATABASE_URL=postgresql://user:password@localhost:5433/erp_builder?schema=public
 
 # JWT Secret (MUST change in production)
 JWT_SECRET=your-super-secret-jwt-key-min-32-chars

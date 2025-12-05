@@ -86,7 +86,11 @@ cp .env.example .env
 
 Edit `.env` with your configuration:
 ```env
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/erp_builder
+# Database URL
+# For Docker Compose: Use port 5433 (to avoid conflicts with local PostgreSQL)
+# For Local PostgreSQL: Use port 5432 (default)
+DATABASE_URL=postgresql://postgres:postgres@localhost:5433/erp_builder?schema=public
+
 JWT_SECRET=your-secret-key-min-32-characters
 CORS_ORIGIN=http://localhost:5173
 VITE_API_URL=http://localhost:3000/api
@@ -146,8 +150,13 @@ docker-compose down
 Services will be available at:
 - **Frontend**: http://localhost
 - **Backend API**: http://localhost:3000
-- **PostgreSQL**: localhost:5432
+- **PostgreSQL**: localhost:5433 (external port, internal is 5432)
 - **Redis**: localhost:6379
+
+**Note:** PostgreSQL is exposed on port 5433 externally to avoid conflicts with locally installed PostgreSQL. Update your `backend/.env` file accordingly:
+```env
+DATABASE_URL=postgresql://postgres:postgres@localhost:5433/erp_builder?schema=public
+```
 
 See [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) for detailed production deployment instructions.
 
