@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { AppError } from '../errors';
-import { Prisma } from '@prisma/client';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { errorResponse } from '../utils/response';
 
 export function errorHandler(
@@ -13,8 +13,8 @@ export function errorHandler(
   console.error('Error:', error);
 
   // Handle Prisma errors
-  if (error instanceof Prisma.PrismaClientKnownRequestError) {
-    const prismaError = error as Prisma.PrismaClientKnownRequestError;
+  if (error instanceof PrismaClientKnownRequestError) {
+    const prismaError = error as PrismaClientKnownRequestError;
     if (prismaError.code === 'P2002') {
       return res.status(409).json(
         errorResponse('DUPLICATE_ENTRY', 'A record with this value already exists')

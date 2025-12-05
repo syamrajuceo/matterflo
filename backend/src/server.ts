@@ -11,8 +11,12 @@ let eventConsumer: TriggerEventConsumer | null = null;
 // Start server
 async function startServer() {
   try {
-    // Connect to database
-    await connectDatabase();
+    // Connect to database (non-blocking for Swagger UI)
+    connectDatabase().catch((dbError) => {
+      console.warn('⚠️  Database connection failed. Swagger UI will still be available.');
+      console.warn('   Please ensure PostgreSQL is running and DATABASE_URL is correct.');
+      console.warn('   Error:', (dbError as Error).message);
+    });
 
     // Check Redis availability and start event consumer
     const redisAvailable = await isRedisAvailable();
@@ -66,4 +70,3 @@ process.on('SIGINT', shutdown);
 
 // Start the server
 startServer();
-
