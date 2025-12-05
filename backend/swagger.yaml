@@ -1,0 +1,2581 @@
+openapi: 3.0.3
+info:
+  title: ERP Builder API
+  description: |
+    Complete API documentation for the ERP Builder system. This API provides endpoints for:
+    - Authentication and user management
+    - Task/Form builder
+    - Flow/Workflow builder
+    - Trigger automation
+    - Custom database management
+    - Dataset/Reporting builder
+    - Company hierarchy management
+    - Integrations
+    - Audit logs
+    - Client portal
+  version: 1.0.0
+  contact:
+    name: ERP Builder Team
+    email: support@erpbuilder.com
+
+servers:
+  - url: http://localhost:3000/api
+    description: Development server
+  - url: https://api.erpbuilder.com/api
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: User authentication and registration
+  - name: Tasks
+    description: Task/Form builder operations
+  - name: Flows
+    description: Workflow/Flow builder operations
+  - name: Triggers
+    description: Event-based automation triggers
+  - name: Execution
+    description: Task and flow execution
+  - name: Database
+    description: Custom database table management
+  - name: Datasets
+    description: Dataset and reporting builder
+  - name: Company
+    description: Company hierarchy and role management
+  - name: Integrations
+    description: External integrations and webhooks
+  - name: Audit
+    description: Audit logs and activity tracking
+  - name: Client
+    description: Client portal endpoints
+  - name: Analytics
+    description: Analytics and statistics endpoints
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from login endpoint
+
+  schemas:
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+        message:
+          type: string
+        meta:
+          type: object
+          properties:
+            timestamp:
+              type: string
+              format: date-time
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+        meta:
+          type: object
+          properties:
+            timestamp:
+              type: string
+              format: date-time
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+          nullable: true
+        lastName:
+          type: string
+          nullable: true
+        role:
+          type: string
+          enum: [DEVELOPER, ADMIN, MANAGER, EMPLOYEE]
+        companyId:
+          type: string
+          format: uuid
+          nullable: true
+
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+        firstName:
+          type: string
+        lastName:
+          type: string
+        role:
+          type: string
+          enum: [DEVELOPER, ADMIN, MANAGER, EMPLOYEE]
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+
+    TaskField:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [text, number, date, dropdown, multi-select, checkbox, file, image, rich-text, field-group]
+        label:
+          type: string
+        placeholder:
+          type: string
+        required:
+          type: boolean
+        validation:
+          type: object
+        conditionalLogic:
+          type: object
+        order:
+          type: number
+
+    Task:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        version:
+          type: string
+        status:
+          type: string
+          enum: [DRAFT, PUBLISHED, ARCHIVED, DEPRECATED]
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskField'
+        companyId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateTaskRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+
+    TaskListResponse:
+      type: object
+      properties:
+        tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/Task'
+        total:
+          type: number
+        page:
+          type: number
+        totalPages:
+          type: number
+
+    TaskExecution:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        taskId:
+          type: string
+          format: uuid
+        task:
+          $ref: '#/components/schemas/Task'
+        executorId:
+          type: string
+          format: uuid
+        executor:
+          $ref: '#/components/schemas/User'
+        data:
+          type: object
+        status:
+          type: string
+          enum: [PENDING, IN_PROGRESS, COMPLETED, CANCELLED]
+        assignedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        dueDate:
+          type: string
+          format: date-time
+          nullable: true
+        flowInstanceId:
+          type: string
+          format: uuid
+          nullable: true
+
+    FlowInstance:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        flowId:
+          type: string
+          format: uuid
+        flow:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            description:
+              type: string
+        startedBy:
+          type: string
+          format: uuid
+        starter:
+          $ref: '#/components/schemas/User'
+        contextData:
+          type: object
+        currentLevelId:
+          type: string
+          format: uuid
+          nullable: true
+        currentLevel:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            order:
+              type: number
+        status:
+          type: string
+          enum: [IN_PROGRESS, COMPLETED, PAUSED, CANCELLED]
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        taskExecutions:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskExecution'
+
+    Dataset:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        sections:
+          type: array
+          items:
+            type: object
+        companyId:
+          type: string
+          format: uuid
+        isPublished:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    DashboardStats:
+      type: object
+      properties:
+        totalTasks:
+          type: number
+        activeTasks:
+          type: number
+        completedTasks:
+          type: number
+        pendingTasks:
+          type: number
+        overdueTasks:
+          type: number
+        taskCompletionRate:
+          type: number
+        totalFlows:
+          type: number
+        activeFlows:
+          type: number
+        completedFlows:
+          type: number
+        flowCompletionRate:
+          type: number
+        totalUsers:
+          type: number
+        activeUsers:
+          type: number
+        recentTasks:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              status:
+                type: string
+              createdAt:
+                type: string
+                format: date-time
+        taskTrends:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date
+              created:
+                type: number
+              completed:
+                type: number
+        flowTrends:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date
+              started:
+                type: number
+              completed:
+                type: number
+
+    TaskAnalytics:
+      type: object
+      properties:
+        totalTasks:
+          type: number
+        publishedTasks:
+          type: number
+        draftTasks:
+          type: number
+        archivedTasks:
+          type: number
+        totalExecutions:
+          type: number
+        completedExecutions:
+          type: number
+        pendingExecutions:
+          type: number
+        inProgressExecutions:
+          type: number
+        completionRate:
+          type: number
+        averageCompletionTime:
+          type: number
+        mostUsedTasks:
+          type: array
+          items:
+            type: object
+        executionsByDate:
+          type: array
+          items:
+            type: object
+        statusDistribution:
+          type: object
+        fieldCompletionRates:
+          type: array
+          items:
+            type: object
+
+    FlowAnalytics:
+      type: object
+      properties:
+        totalFlows:
+          type: number
+        publishedFlows:
+          type: number
+        draftFlows:
+          type: number
+        activeInstances:
+          type: number
+        totalInstances:
+          type: number
+        completedInstances:
+          type: number
+        inProgressInstances:
+          type: number
+        cancelledInstances:
+          type: number
+        completionRate:
+          type: number
+        averageCompletionTime:
+          type: number
+        mostUsedFlows:
+          type: array
+          items:
+            type: object
+        levelPerformance:
+          type: array
+          items:
+            type: object
+        instancesByDate:
+          type: array
+          items:
+            type: object
+        statusDistribution:
+          type: object
+
+    UserActivityAnalytics:
+      type: object
+      properties:
+        totalUsers:
+          type: number
+        activeUsers:
+          type: number
+        newUsers:
+          type: number
+        totalTaskCompletions:
+          type: number
+        totalFlowCompletions:
+          type: number
+        averageTasksPerUser:
+          type: number
+        averageFlowsPerUser:
+          type: number
+        topTaskCompleters:
+          type: array
+          items:
+            type: object
+        topFlowCompleters:
+          type: array
+          items:
+            type: object
+        activityByDate:
+          type: array
+          items:
+            type: object
+        activityByDepartment:
+          type: array
+          items:
+            type: object
+        activityByRole:
+          type: array
+          items:
+            type: object
+
+    CompanyAnalytics:
+      type: object
+      properties:
+        totalDepartments:
+          type: number
+        totalRoles:
+          type: number
+        totalUsers:
+          type: number
+        departmentStats:
+          type: array
+          items:
+            type: object
+        roleStats:
+          type: array
+          items:
+            type: object
+        usersByDepartment:
+          type: array
+          items:
+            type: object
+        usersByRole:
+          type: array
+          items:
+            type: object
+        userGrowth:
+          type: array
+          items:
+            type: object
+
+    PerformanceMetrics:
+      type: object
+      properties:
+        averageTaskCompletionTime:
+          type: number
+        averageFlowCompletionTime:
+          type: number
+        averageResponseTime:
+          type: number
+        tasksPerDay:
+          type: number
+        flowsPerDay:
+          type: number
+        completionsPerDay:
+          type: number
+        slowestTasks:
+          type: array
+          items:
+            type: object
+        slowestFlows:
+          type: array
+          items:
+            type: object
+        performanceTrends:
+          type: array
+          items:
+            type: object
+        peakActivityHours:
+          type: array
+          items:
+            type: object
+
+paths:
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AuthResponse'
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login user
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AuthResponse'
+
+  /auth/me:
+    get:
+      tags:
+        - Authentication
+      summary: Get current user
+      responses:
+        '200':
+          description: User information
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/User'
+
+  /tasks:
+    get:
+      tags:
+        - Tasks
+      summary: List tasks
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [DRAFT, PUBLISHED, ARCHIVED, DEPRECATED]
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TaskListResponse'
+    post:
+      tags:
+        - Tasks
+      summary: Create a new task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskRequest'
+      responses:
+        '201':
+          description: Task created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Task'
+
+  /tasks/{id}:
+    get:
+      tags:
+        - Tasks
+      summary: Get task by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Task details
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Task'
+    put:
+      tags:
+        - Tasks
+      summary: Update task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Task updated successfully
+    delete:
+      tags:
+        - Tasks
+      summary: Delete task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Task deleted successfully
+
+  /tasks/{id}/publish:
+    post:
+      tags:
+        - Tasks
+      summary: Publish task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Task published successfully
+
+  /tasks/{id}/fields:
+    post:
+      tags:
+        - Tasks
+      summary: Add field to task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Field added successfully
+
+  /tasks/{id}/fields/{fieldId}:
+    put:
+      tags:
+        - Tasks
+      summary: Update field
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: fieldId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Field updated successfully
+    delete:
+      tags:
+        - Tasks
+      summary: Delete field
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: fieldId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Field deleted successfully
+
+  /tasks/{id}/fields/reorder:
+    put:
+      tags:
+        - Tasks
+      summary: Reorder fields
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fieldIds:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Fields reordered successfully
+
+  /flows:
+    get:
+      tags:
+        - Flows
+      summary: List flows
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of flows
+    post:
+      tags:
+        - Flows
+      summary: Create a new flow
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '201':
+          description: Flow created successfully
+
+  /flows/{id}:
+    get:
+      tags:
+        - Flows
+      summary: Get flow by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Flow details
+    put:
+      tags:
+        - Flows
+      summary: Update flow
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Flow updated successfully
+    delete:
+      tags:
+        - Flows
+      summary: Delete flow
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Flow deleted successfully
+
+  /flows/{id}/publish:
+    post:
+      tags:
+        - Flows
+      summary: Publish flow
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Flow published successfully
+
+  /flows/{id}/levels:
+    post:
+      tags:
+        - Flows
+      summary: Add level to flow
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '200':
+          description: Level added successfully
+
+  /flows/{id}/levels/{levelId}:
+    put:
+      tags:
+        - Flows
+      summary: Update level
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: levelId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Level updated successfully
+    delete:
+      tags:
+        - Flows
+      summary: Delete level
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: levelId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Level deleted successfully
+
+  /flows/{id}/levels/reorder:
+    put:
+      tags:
+        - Flows
+      summary: Reorder levels
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                levelIds:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Levels reordered successfully
+
+  /flows/{id}/levels/{levelId}/tasks:
+    post:
+      tags:
+        - Flows
+      summary: Add task to level
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: levelId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - taskId
+              properties:
+                taskId:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Task added to level successfully
+
+  /flows/{id}/levels/{levelId}/tasks/{taskId}:
+    delete:
+      tags:
+        - Flows
+      summary: Remove task from level
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: levelId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Task removed successfully
+
+  /flows/{id}/branches:
+    post:
+      tags:
+        - Flows
+      summary: Create branch
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - fromLevelId
+                - toLevelId
+                - conditions
+              properties:
+                name:
+                  type: string
+                fromLevelId:
+                  type: string
+                  format: uuid
+                toLevelId:
+                  type: string
+                  format: uuid
+                conditions:
+                  type: object
+      responses:
+        '200':
+          description: Branch created successfully
+
+  /triggers:
+    get:
+      tags:
+        - Triggers
+      summary: List triggers
+      parameters:
+        - name: taskId
+          in: query
+          schema:
+            type: string
+        - name: flowId
+          in: query
+          schema:
+            type: string
+        - name: eventType
+          in: query
+          schema:
+            type: string
+        - name: isActive
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: List of triggers
+    post:
+      tags:
+        - Triggers
+      summary: Create trigger
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - eventType
+                - actions
+              properties:
+                name:
+                  type: string
+                eventType:
+                  type: string
+                actions:
+                  type: array
+                  items:
+                    type: object
+      responses:
+        '201':
+          description: Trigger created successfully
+
+  /triggers/{id}:
+    get:
+      tags:
+        - Triggers
+      summary: Get trigger by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Trigger details
+    put:
+      tags:
+        - Triggers
+      summary: Update trigger
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Trigger updated successfully
+    delete:
+      tags:
+        - Triggers
+      summary: Delete trigger
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Trigger deleted successfully
+
+  /triggers/{id}/test:
+    post:
+      tags:
+        - Triggers
+      summary: Test trigger
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Trigger test result
+
+  /triggers/{id}/executions:
+    get:
+      tags:
+        - Triggers
+      summary: Get trigger executions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: List of trigger executions
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          items:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                id:
+                                  type: string
+                                  format: uuid
+                                triggerId:
+                                  type: string
+                                  format: uuid
+                                executedAt:
+                                  type: string
+                                  format: date-time
+                                status:
+                                  type: string
+                                  enum: [SUCCESS, FAILED]
+                                error:
+                                  type: string
+                                result:
+                                  type: object
+                          total:
+                            type: number
+                          page:
+                            type: number
+                          totalPages:
+                            type: number
+
+  /executions/tasks:
+    post:
+      tags:
+        - Execution
+      summary: Create task execution
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - taskId
+                - executorId
+              properties:
+                taskId:
+                  type: string
+                  format: uuid
+                executorId:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Task execution created
+
+  /executions/tasks/my-tasks:
+    get:
+      tags:
+        - Execution
+      summary: Get my pending tasks
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of user's task executions
+
+  /executions/tasks/{id}:
+    get:
+      tags:
+        - Execution
+      summary: Get task execution by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Task execution details
+    put:
+      tags:
+        - Execution
+      summary: Update task execution (submit response)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                data:
+                  type: object
+                status:
+                  type: string
+      responses:
+        '200':
+          description: Task execution updated
+
+  /executions/flows:
+    post:
+      tags:
+        - Execution
+      summary: Create flow instance (start workflow)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - flowId
+              properties:
+                flowId:
+                  type: string
+                  format: uuid
+                contextData:
+                  type: object
+      responses:
+        '200':
+          description: Flow instance created
+
+  /executions/flows/my-flows:
+    get:
+      tags:
+        - Execution
+      summary: Get my flow instances
+      responses:
+        '200':
+          description: List of user's flow instances
+
+  /executions/flows/{id}:
+    get:
+      tags:
+        - Execution
+      summary: Get flow instance by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Flow instance details
+
+  /database:
+    get:
+      tags:
+        - Database
+      summary: List custom tables
+      responses:
+        '200':
+          description: List of tables
+    post:
+      tags:
+        - Database
+      summary: Create custom table
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - displayName
+              properties:
+                name:
+                  type: string
+                displayName:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '201':
+          description: Table created successfully
+
+  /database/{id}:
+    get:
+      tags:
+        - Database
+      summary: Get table by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Table details
+    put:
+      tags:
+        - Database
+      summary: Update table
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Table updated successfully
+
+  /database/{id}/fields:
+    post:
+      tags:
+        - Database
+      summary: Add field to table
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Field added successfully
+
+  /database/{id}/records:
+    get:
+      tags:
+        - Database
+      summary: Query records
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: filters
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Records query result
+    post:
+      tags:
+        - Database
+      summary: Insert record
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '201':
+          description: Record inserted successfully
+
+  /database/{id}/records/{recordId}:
+    put:
+      tags:
+        - Database
+      summary: Update record
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: recordId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Record updated successfully
+    delete:
+      tags:
+        - Database
+      summary: Delete record
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: recordId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Record deleted successfully
+
+  /database/{id}/import:
+    post:
+      tags:
+        - Database
+      summary: Import CSV file
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: CSV imported successfully
+
+  /database/{id}/export:
+    get:
+      tags:
+        - Database
+      summary: Export table to CSV
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: CSV file
+          content:
+            text/csv:
+              schema:
+                type: string
+
+  /datasets:
+    get:
+      tags:
+        - Datasets
+      summary: List datasets
+      responses:
+        '200':
+          description: List of datasets
+    post:
+      tags:
+        - Datasets
+      summary: Create dataset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '201':
+          description: Dataset created successfully
+
+  /datasets/{id}:
+    get:
+      tags:
+        - Datasets
+      summary: Get dataset by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Dataset details
+    put:
+      tags:
+        - Datasets
+      summary: Update dataset
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Dataset updated successfully
+    delete:
+      tags:
+        - Datasets
+      summary: Delete dataset
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Dataset deleted successfully
+
+  /datasets/{id}/sections:
+    post:
+      tags:
+        - Datasets
+      summary: Add section to dataset
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '201':
+          description: Section added successfully
+
+  /datasets/{id}/data:
+    get:
+      tags:
+        - Datasets
+      summary: Get dataset with data
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Dataset with populated data
+
+  /datasets/{id}/publish:
+    post:
+      tags:
+        - Datasets
+      summary: Publish dataset
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Dataset published successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Dataset'
+
+  /company/hierarchy:
+    get:
+      tags:
+        - Company
+      summary: Get company hierarchy tree
+      responses:
+        '200':
+          description: Company hierarchy
+
+  /company/departments:
+    post:
+      tags:
+        - Company
+      summary: Create department
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '201':
+          description: Department created successfully
+
+  /company/departments/{id}:
+    put:
+      tags:
+        - Company
+      summary: Update department
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Department updated successfully
+    delete:
+      tags:
+        - Company
+      summary: Delete department
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Department deleted successfully
+
+  /company/roles:
+    get:
+      tags:
+        - Company
+      summary: List roles
+      parameters:
+        - name: departmentId
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of roles
+    post:
+      tags:
+        - Company
+      summary: Create role
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                permissions:
+                  type: object
+      responses:
+        '201':
+          description: Role created successfully
+
+  /company/roles/{id}:
+    put:
+      tags:
+        - Company
+      summary: Update role
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Role updated successfully
+    delete:
+      tags:
+        - Company
+      summary: Delete role
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Role deleted successfully
+
+  /company/roles/{roleId}/assign/{userId}:
+    post:
+      tags:
+        - Company
+      summary: Assign user to role
+      parameters:
+        - name: roleId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User assigned to role successfully
+
+  /company/departments/{id}/roles:
+    get:
+      tags:
+        - Company
+      summary: Get roles by department
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of roles in department
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            name:
+                              type: string
+                            description:
+                              type: string
+                            departmentId:
+                              type: string
+                              format: uuid
+                            permissions:
+                              type: object
+
+  /company/users:
+    get:
+      tags:
+        - Company
+      summary: Get users in company
+      responses:
+        '200':
+          description: List of users
+
+  /integrations:
+    get:
+      tags:
+        - Integrations
+      summary: List integrations
+      responses:
+        '200':
+          description: List of integrations
+    post:
+      tags:
+        - Integrations
+      summary: Create integration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - type
+              properties:
+                name:
+                  type: string
+                type:
+                  type: string
+                  enum: [GMAIL, GOOGLE_SHEETS, OUTLOOK, WEBHOOK, CUSTOM_API]
+      responses:
+        '201':
+          description: Integration created successfully
+
+  /integrations/{id}:
+    get:
+      tags:
+        - Integrations
+      summary: Get integration by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Integration details
+    delete:
+      tags:
+        - Integrations
+      summary: Delete integration
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Integration deleted successfully
+
+  /integrations/webhooks/{webhookId}:
+    post:
+      tags:
+        - Integrations
+      summary: Handle incoming webhook
+      security: []
+      parameters:
+        - name: webhookId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Webhook received successfully
+
+  /audit/logs:
+    get:
+      tags:
+        - Audit
+      summary: Get audit logs
+      parameters:
+        - name: entity
+          in: query
+          schema:
+            type: string
+        - name: entityId
+          in: query
+          schema:
+            type: string
+        - name: action
+          in: query
+          schema:
+            type: string
+        - name: userId
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Audit logs
+
+  /audit/logs/export:
+    get:
+      tags:
+        - Audit
+      summary: Export audit logs as CSV
+      responses:
+        '200':
+          description: CSV file
+          content:
+            text/csv:
+              schema:
+                type: string
+
+  /client/dashboard:
+    get:
+      tags:
+        - Client
+      summary: Get client dashboard statistics
+      responses:
+        '200':
+          description: Dashboard statistics
+
+  /client/tasks:
+    get:
+      tags:
+        - Client
+      summary: Get all tasks
+      responses:
+        '200':
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/TaskExecution'
+
+  /client/tasks/pending:
+    get:
+      tags:
+        - Client
+      summary: Get pending tasks
+      responses:
+        '200':
+          description: List of pending tasks
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/TaskExecution'
+
+  /client/tasks/{id}:
+    get:
+      tags:
+        - Client
+      summary: Get task execution details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Task execution details
+
+  /client/tasks/{id}/submit:
+    post:
+      tags:
+        - Client
+      summary: Submit task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - data
+              properties:
+                data:
+                  type: object
+      responses:
+        '200':
+          description: Task submitted successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TaskExecution'
+
+  /client/tasks/{id}/complete:
+    post:
+      tags:
+        - Client
+      summary: Complete task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                data:
+                  type: object
+      responses:
+        '204':
+          description: Task completed successfully
+
+  /client/flows:
+    get:
+      tags:
+        - Client
+      summary: Get my flow instances
+      responses:
+        '200':
+          description: List of flow instances
+
+  /client/flows/{id}:
+    get:
+      tags:
+        - Client
+      summary: Get flow instance details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Flow instance details
+
+  /analytics/dashboard:
+    get:
+      tags:
+        - Analytics
+      summary: Get dashboard statistics
+      parameters:
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: departmentId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: roleId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: userId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Dashboard statistics
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/DashboardStats'
+
+  /analytics/tasks:
+    get:
+      tags:
+        - Analytics
+      summary: Get task analytics
+      parameters:
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: taskId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: departmentId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: roleId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: userId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Task analytics
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TaskAnalytics'
+
+  /analytics/flows:
+    get:
+      tags:
+        - Analytics
+      summary: Get flow analytics
+      parameters:
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: flowId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: departmentId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: roleId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: userId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Flow analytics
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/FlowAnalytics'
+
+  /analytics/users:
+    get:
+      tags:
+        - Analytics
+      summary: Get user activity analytics
+      parameters:
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: departmentId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: roleId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: userId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User activity analytics
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UserActivityAnalytics'
+
+  /analytics/company:
+    get:
+      tags:
+        - Analytics
+      summary: Get company analytics
+      responses:
+        '200':
+          description: Company analytics
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CompanyAnalytics'
+
+  /analytics/performance:
+    get:
+      tags:
+        - Analytics
+      summary: Get performance metrics
+      parameters:
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: departmentId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: roleId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Performance metrics
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PerformanceMetrics'

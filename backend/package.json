@@ -2,7 +2,22 @@
   "name": "backend",
   "version": "1.0.0",
   "description": "",
+  "keywords": [],
+  "homepage": "https://github.com/syamrajuceo/matterflo#readme",
+  "bugs": {
+    "url": "https://github.com/syamrajuceo/matterflo/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/syamrajuceo/matterflo.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
   "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
   "scripts": {
     "dev": "nodemon --exec ts-node src/server.ts",
     "build": "tsc",
@@ -23,13 +38,12 @@
     "test:integration-api": "bash test-integration-api.sh",
     "test:audit-api": "bash test-audit-api.sh"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
     "@prisma/client": "^6.19.0",
     "@types/multer": "^2.0.0",
+    "@types/swagger-jsdoc": "^6.0.4",
+    "@types/swagger-ui-express": "^4.1.8",
+    "@types/yamljs": "^0.2.34",
     "axios": "^1.13.2",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
@@ -43,7 +57,10 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",
     "redis": "^5.10.0",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
     "uuid": "^13.0.0",
+    "yamljs": "^0.3.0",
     "zod": "^4.1.13"
   },
   "devDependencies": {

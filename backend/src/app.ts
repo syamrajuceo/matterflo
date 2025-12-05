@@ -15,6 +15,7 @@ import integrationRoutes from './modules/integrations/integration.routes';
 import auditRoutes from './modules/audit/audit.routes';
 import clientRoutes from './modules/client/client.routes';
 import executionRoutes from './modules/execution/execution.routes';
+import analyticsRoutes from './modules/analytics/analytics.routes';
 
 // Load environment variables
 dotenv.config();
@@ -56,6 +57,25 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
+// Swagger UI (only in development or if enabled)
+if (process.env.NODE_ENV !== 'production' || process.env.ENABLE_SWAGGER === 'true') {
+  try {
+    const swaggerUi = require('swagger-ui-express');
+    const YAML = require('yamljs');
+    const path = require('path');
+    const swaggerDocument = YAML.load(path.join(__dirname, '../swagger.yaml'));
+    
+    app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
+      customCss: '.swagger-ui .topbar { display: none }',
+      customSiteTitle: 'ERP Builder API Documentation',
+    }));
+    
+    console.log('📚 Swagger UI available at http://localhost:3000/api-docs');
+  } catch (error) {
+    console.warn('⚠️  Swagger UI not available. Install dependencies: npm install swagger-ui-express yamljs');
+  }
+}
+
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/tasks', taskRoutes);
@@ -68,6 +88,7 @@ app.use('/api/integrations', integrationRoutes);
 app.use('/api/audit', auditRoutes);
 app.use('/api/client', clientRoutes);
 app.use('/api/executions', executionRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // 404 handler
 app.use((req, res) => {
