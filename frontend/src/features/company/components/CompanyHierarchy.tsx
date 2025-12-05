@@ -183,7 +183,17 @@ export const CompanyHierarchy = () => {
       </div>
 
       <div className="flex-1">
-        <Tabs value={activeTab}>
+        <Tabs 
+          value={activeTab} 
+          onValueChange={(value) => {
+            setActiveTab(value as any);
+            // Clear department filter when switching to Roles or Users tab
+            // so all roles/users are visible
+            if (value === 'roles' || value === 'users') {
+              setSelectedDepartmentId(null);
+            }
+          }}
+        >
           <TabsContent value="departments" className="m-0 h-full">
             <DepartmentTree
               onAddSubDepartment={(id) => handleOpenCreateDept(id)}

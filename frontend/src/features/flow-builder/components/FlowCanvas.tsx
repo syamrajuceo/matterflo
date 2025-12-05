@@ -167,12 +167,60 @@ export function FlowCanvas() {
   const handleSelectTask = async (task: ITask) => {
     if (!currentFlow || !taskDialogLevelId) return;
     try {
-      await flowService.addTaskToLevel(currentFlow.id, taskDialogLevelId, {
+      // Save to backend
+      const updatedFlow = await flowService.addTaskToLevel(currentFlow.id, taskDialogLevelId, {
         taskId: task.id,
       });
-      const updatedFlow = await flowService.getFlow(currentFlow.id);
-      setHasUnsavedChanges(true);
-      useFlowBuilderStore.getState().setCurrentFlow(updatedFlow);
+      
+      // Preserve the current order and local changes from local state before updating
+      const currentState = useFlowBuilderStore.getState().currentFlow;
+      const store = useFlowBuilderStore.getState();
+      
+      if (currentState) {
+        // Merge: use updated flow data but preserve the order and local changes from current state
+        const currentOrder = currentState.levels.map(l => l.id);
+        const updatedLevels = currentOrder
+          .map(id => {
+            const currentLevel = currentState.levels.find(l => l.id === id);
+            const backendLevel = updatedFlow.levels.find(l => l.id === id);
+            
+            if (!backendLevel) return null;
+            
+            // Merge: use backend data for tasks/roles (they're updated), but preserve local name/description if changed
+            // If level has temp ID, it's new and not saved yet, so use current state
+            if (id.startsWith('temp-')) {
+              return currentLevel;
+            }
+            
+            // Otherwise merge: backend data for tasks/roles, current state for other properties if they differ
+            return {
+              ...backendLevel,
+              // Preserve local name/description if they were changed (different from backend)
+              name: currentLevel?.name !== backendLevel.name ? currentLevel.name : backendLevel.name,
+              description: currentLevel?.description !== backendLevel.description ? currentLevel.description : backendLevel.description,
+            };
+          })
+          .filter(Boolean) as IFlowLevel[];
+        
+        // Update the flow with merged data
+        store.setCurrentFlow({
+          ...updatedFlow,
+          levels: updatedLevels,
+        });
+        
+        // Update selected level if it's the one that was modified
+        if (store.selectedLevel?.id === taskDialogLevelId) {
+          const updatedSelectedLevel = updatedLevels.find(l => l.id === taskDialogLevelId);
+          if (updatedSelectedLevel) {
+            store.setSelectedLevel(updatedSelectedLevel);
+          }
+        }
+      } else {
+        // Fallback: use the updated flow as-is
+        store.setCurrentFlow(updatedFlow);
+      }
+      
+      setHasUnsavedChanges(false); // Task is saved immediately
       setIsTaskDialogOpen(false);
       setTaskSearch('');
       showToast({
@@ -199,10 +247,58 @@ export function FlowCanvas() {
   const handleAddRoleToLevel = async () => {
     if (!currentFlow || !roleDialogLevelId || !roleInput.trim()) return;
     try {
-      await flowService.addRoleToLevel(currentFlow.id, roleDialogLevelId, roleInput.trim());
-      const updatedFlow = await flowService.getFlow(currentFlow.id);
-      setHasUnsavedChanges(true);
-      useFlowBuilderStore.getState().setCurrentFlow(updatedFlow);
+      // Save to backend
+      const updatedFlow = await flowService.addRoleToLevel(currentFlow.id, roleDialogLevelId, roleInput.trim());
+      
+      // Preserve the current order and local changes from local state before updating
+      const currentState = useFlowBuilderStore.getState().currentFlow;
+      const store = useFlowBuilderStore.getState();
+      
+      if (currentState) {
+        // Merge: use updated flow data but preserve the order and local changes from current state
+        const currentOrder = currentState.levels.map(l => l.id);
+        const updatedLevels = currentOrder
+          .map(id => {
+            const currentLevel = currentState.levels.find(l => l.id === id);
+            const backendLevel = updatedFlow.levels.find(l => l.id === id);
+            
+            if (!backendLevel) return null;
+            
+            // Merge: use backend data for tasks/roles (they're updated), but preserve local name/description if changed
+            // If level has temp ID, it's new and not saved yet, so use current state
+            if (id.startsWith('temp-')) {
+              return currentLevel;
+            }
+            
+            // Otherwise merge: backend data for tasks/roles, current state for other properties if they differ
+            return {
+              ...backendLevel,
+              // Preserve local name/description if they were changed (different from backend)
+              name: currentLevel?.name !== backendLevel.name ? currentLevel.name : backendLevel.name,
+              description: currentLevel?.description !== backendLevel.description ? currentLevel.description : backendLevel.description,
+            };
+          })
+          .filter(Boolean) as IFlowLevel[];
+        
+        // Update the flow with merged data
+        store.setCurrentFlow({
+          ...updatedFlow,
+          levels: updatedLevels,
+        });
+        
+        // Update selected level if it's the one that was modified
+        if (store.selectedLevel?.id === roleDialogLevelId) {
+          const updatedSelectedLevel = updatedLevels.find(l => l.id === roleDialogLevelId);
+          if (updatedSelectedLevel) {
+            store.setSelectedLevel(updatedSelectedLevel);
+          }
+        }
+      } else {
+        // Fallback: use the updated flow as-is
+        store.setCurrentFlow(updatedFlow);
+      }
+      
+      setHasUnsavedChanges(false); // Role is saved immediately
       setIsRoleDialogOpen(false);
       setRoleInput('');
       showToast({

@@ -7,6 +7,7 @@ import { FlowAction } from './actions/FlowAction';
 import { DatabaseAction } from './actions/DatabaseAction';
 import { WebhookAction } from './actions/WebhookAction';
 import { TaskAction } from './actions/TaskAction';
+import { PdfAction } from './actions/PdfAction';
 import type { IAction } from '../types/action.types';
 import { ACTION_TYPE_LABELS, ACTION_TYPE_ICONS } from '../types/action.types';
 
@@ -39,6 +40,10 @@ function getActionSummary(action: IAction): string {
     case 'task':
       const taskAction = action as any;
       return `Task: ${taskAction.taskId || 'Not selected'}`;
+    
+    case 'pdf':
+      const pdfAction = action as any;
+      return `Source: ${pdfAction.sourceType || 'task'} • ${pdfAction.filename || 'document.pdf'}`;
     
     default:
       return 'Action';
@@ -158,6 +163,13 @@ export function ActionCard({ action, index, onUpdate, onDelete, isDragging }: Ac
             <TaskAction
               action={action as any}
               onChange={onUpdate}
+            />
+          )}
+          {action.type === 'pdf' && (
+            <PdfAction
+              action={action as any}
+              onChange={onUpdate}
+              emailActionsCount={0} // TODO: Calculate from actions array
             />
           )}
         </div>

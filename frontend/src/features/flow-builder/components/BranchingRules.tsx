@@ -85,7 +85,41 @@ export function BranchingRules({ level, onClose }: BranchingRulesProps) {
           priority,
         });
 
+        // Preserve the current order and local changes from local state before updating
+        const currentState = useFlowBuilderStore.getState().currentFlow;
+        if (currentState) {
+          // Merge: use updated flow data but preserve the order and local changes from current state
+          const currentOrder = currentState.levels.map(l => l.id);
+          const updatedLevels = currentOrder
+            .map(id => {
+              const currentLevel = currentState.levels.find(l => l.id === id);
+              const backendLevel = updatedFlow.levels.find(l => l.id === id);
+              
+              if (!backendLevel) return null;
+              
+              // Merge: use backend data for branches (they're updated), but preserve local name/description if changed
+              if (id.startsWith('temp-')) {
+                return currentLevel;
+              }
+              
+              return {
+                ...backendLevel,
+                // Preserve local name/description if they were changed
+                name: currentLevel?.name !== backendLevel.name ? currentLevel.name : backendLevel.name,
+                description: currentLevel?.description !== backendLevel.description ? currentLevel.description : backendLevel.description,
+              };
+            })
+            .filter(Boolean) as IFlowLevel[];
+          
+          // Update the flow with merged data
+          setCurrentFlow({
+            ...updatedFlow,
+            levels: updatedLevels,
+          });
+        } else {
         setCurrentFlow(updatedFlow);
+        }
+        
         const newBranch = updatedFlow.branches.find(
           (b) => b.fromLevelId === level.id && b.toLevelId === targetLevelId && b.name === branchName
         );
@@ -134,15 +168,47 @@ export function BranchingRules({ level, onClose }: BranchingRulesProps) {
 
     try {
       if (!selectedBranch.id.startsWith('temp-')) {
-        await flowService.updateBranch(currentFlow.id, selectedBranch.id, {
+        // Save to backend
+        const updatedFlow = await flowService.updateBranch(currentFlow.id, selectedBranch.id, {
           name: branchName,
           conditions: conditions || {},
           priority,
         });
 
-        // Reload flow
-        const updatedFlow = await flowService.getFlow(currentFlow.id);
+        // Preserve the current order and local changes from local state before updating
+        const currentState = useFlowBuilderStore.getState().currentFlow;
+        if (currentState) {
+          // Merge: use updated flow data but preserve the order and local changes from current state
+          const currentOrder = currentState.levels.map(l => l.id);
+          const updatedLevels = currentOrder
+            .map(id => {
+              const currentLevel = currentState.levels.find(l => l.id === id);
+              const backendLevel = updatedFlow.levels.find(l => l.id === id);
+              
+              if (!backendLevel) return null;
+              
+              // Merge: use backend data for branches (they're updated), but preserve local name/description if changed
+              if (id.startsWith('temp-')) {
+                return currentLevel;
+              }
+              
+              return {
+                ...backendLevel,
+                // Preserve local name/description if they were changed
+                name: currentLevel?.name !== backendLevel.name ? currentLevel.name : backendLevel.name,
+                description: currentLevel?.description !== backendLevel.description ? currentLevel.description : backendLevel.description,
+              };
+            })
+            .filter(Boolean) as IFlowLevel[];
+          
+          // Update the flow with merged data
+          setCurrentFlow({
+            ...updatedFlow,
+            levels: updatedLevels,
+          });
+        } else {
         setCurrentFlow(updatedFlow);
+        }
 
         const updatedBranch = updatedFlow.branches.find((b) => b.id === selectedBranch.id);
         if (updatedBranch) {

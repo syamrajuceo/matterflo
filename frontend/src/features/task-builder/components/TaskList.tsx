@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, FileText, Edit, Trash2 } from 'lucide-react';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import { useRole } from '@/hooks/useRole';
 
 interface Task {
   id: string;
@@ -19,6 +20,7 @@ interface Task {
 export default function TaskList() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const { canCreateTasks } = useRole();
 
   useEffect(() => {
     fetchTasks();
@@ -45,9 +47,11 @@ export default function TaskList() {
         <EmptyState
           icon={FileText}
           title="No tasks yet"
-          description="Create your first task to get started building forms and workflows."
-          actionLabel="Create Task"
-          onAction={() => window.location.href = '/tasks/new'}
+          description={canCreateTasks 
+            ? "Create your first task to get started building forms and workflows."
+            : "No tasks available. Contact your administrator to create tasks."}
+          actionLabel={canCreateTasks ? "Create Task" : undefined}
+          onAction={canCreateTasks ? () => window.location.href = '/tasks/new' : undefined}
         />
       </div>
     );
@@ -62,12 +66,14 @@ export default function TaskList() {
             Manage your custom forms and data collection tasks
           </p>
         </div>
-        <Button asChild size="default">
-          <Link to="/tasks/new">
-            <Plus className="size-4" />
-            New Task
-          </Link>
-        </Button>
+        {canCreateTasks && (
+          <Button asChild size="default">
+            <Link to="/tasks/new">
+              <Plus className="size-4" />
+              New Task
+            </Link>
+          </Button>
+        )}
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -91,11 +97,13 @@ export default function TaskList() {
                 <span className="text-xs text-muted-foreground">
                   Created {new Date(task.createdAt).toLocaleDateString()}
                 </span>
-                <Button variant="ghost" size="icon-sm" asChild>
-                  <Link to={`/tasks/${task.id}`}>
-                    <Edit className="size-4" />
-                  </Link>
-                </Button>
+                {canCreateTasks && (
+                  <Button variant="ghost" size="icon-sm" asChild>
+                    <Link to={`/tasks/${task.id}`}>
+                      <Edit className="size-4" />
+                    </Link>
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>

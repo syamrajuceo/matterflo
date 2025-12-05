@@ -4,6 +4,7 @@ import { startFlow } from './actions/flow.action';
 import { updateDatabase } from './actions/database.action';
 import { callWebhook } from './actions/webhook.action';
 import { assignTask } from './actions/task.action';
+import { generatePdf } from './actions/pdf.action';
 
 export class TriggerExecutor {
   private readonly DEFAULT_TIMEOUT = 30000; // 30 seconds
@@ -83,6 +84,8 @@ export class TriggerExecutor {
         return await callWebhook(action, context);
       case 'task':
         return await assignTask(action, context);
+      case 'pdf':
+        return await generatePdf(action, context);
       default:
         return {
           action,

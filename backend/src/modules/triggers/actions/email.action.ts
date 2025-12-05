@@ -1,9 +1,9 @@
 import type { IEmailAction, IActionExecutionResult } from '../trigger.types';
+import { emailService } from '../../email/email.service';
 
 /**
  * Execute email action
- * Note: This is a placeholder - actual email sending should be implemented
- * using a service like Nodemailer or SendGrid
+ * Uses the email service to send real emails
  */
 export async function sendEmail(
   action: IEmailAction,
@@ -12,48 +12,35 @@ export async function sendEmail(
   const startTime = Date.now();
 
   try {
-    // TODO: Implement actual email sending
-    // For now, this is a placeholder that simulates email sending
-    
     const recipients = Array.isArray(action.to) ? action.to : [action.to];
     
-    // Replace variables in subject and body
-    let subject = action.subject;
-    let body = action.body;
-    
-    if (action.variables || context) {
-      const variables = { ...context, ...action.variables };
-      Object.keys(variables).forEach((key) => {
-        const value = String(variables[key]);
-        subject = subject.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
-        body = body.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
-      });
+    // Prepare email request
+    const emailRequest: any = {
+      to: recipients,
+      variables: { ...context, ...action.variables },
+    };
+
+    // If templateId provided, use template
+    if (action.templateId) {
+      emailRequest.templateId = action.templateId;
+    } else {
+      // Use direct subject and body
+      emailRequest.subject = action.subject;
+      emailRequest.body = action.body;
     }
 
-    // Simulate email sending
-    console.log('📧 Email action:', {
-      to: recipients,
-      subject,
-      body: body.substring(0, 100) + '...',
-    });
-
-    // In production, this would call an email service:
-    // await emailService.send({
-    //   to: recipients,
-    //   subject,
-    //   body,
-    //   templateId: action.templateId,
-    // });
+    // Send email using email service
+    const result = await emailService.sendEmail(emailRequest);
 
     const executionTime = Date.now() - startTime;
 
     return {
       action,
-      success: true,
+      success: result.success,
       result: {
         recipients,
-        subject,
-        sent: true,
+        messageId: result.messageId,
+        sent: result.success,
       },
       executionTime,
     };

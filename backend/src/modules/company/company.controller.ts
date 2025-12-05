@@ -1,16 +1,30 @@
 import { Request, Response, NextFunction } from 'express';
 import { companyService } from './company.service';
 import { successResponse } from '../../common/utils/response';
+import { getCompanyIdForUser } from '../../common/utils/company-helper';
 
 class CompanyController {
   // POST /api/company/departments
   createDepartment = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const user = req.user;
-      if (!user || !user.companyId) {
+      if (!user) {
         return res.status(401).json({
           success: false,
-          error: { code: 'AUTH_ERROR', message: 'User must be associated with a company' },
+          error: { code: 'AUTH_ERROR', message: 'Not authenticated' },
+        });
+      }
+
+      const companyId = await getCompanyIdForUser(user, req);
+      if (!companyId) {
+        return res.status(400).json({
+          success: false,
+          error: { 
+            code: 'COMPANY_REQUIRED', 
+            message: user.role === 'DEVELOPER' 
+              ? 'Please select a company or provide x-company-id header'
+              : 'User must be associated with a company' 
+          },
         });
       }
 
@@ -20,7 +34,7 @@ class CompanyController {
         name,
         description,
         parentId,
-        companyId: user.companyId,
+        companyId,
       });
 
       res.status(201).json(successResponse(department));
@@ -67,14 +81,27 @@ class CompanyController {
   getHierarchyTree = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const user = req.user;
-      if (!user || !user.companyId) {
+      if (!user) {
         return res.status(401).json({
           success: false,
-          error: { code: 'AUTH_ERROR', message: 'User must be associated with a company' },
+          error: { code: 'AUTH_ERROR', message: 'Not authenticated' },
         });
       }
 
-      const tree = await companyService.getHierarchyTree(user.companyId);
+      const companyId = await getCompanyIdForUser(user, req);
+      if (!companyId) {
+        return res.status(400).json({
+          success: false,
+          error: { 
+            code: 'COMPANY_REQUIRED', 
+            message: user.role === 'DEVELOPER' 
+              ? 'Please select a company or provide x-company-id header'
+              : 'User must be associated with a company' 
+          },
+        });
+      }
+
+      const tree = await companyService.getHierarchyTree(companyId);
       res.json(successResponse(tree));
     } catch (error) {
       next(error);
@@ -85,10 +112,23 @@ class CompanyController {
   createRole = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const user = req.user;
-      if (!user || !user.companyId) {
+      if (!user) {
         return res.status(401).json({
           success: false,
-          error: { code: 'AUTH_ERROR', message: 'User must be associated with a company' },
+          error: { code: 'AUTH_ERROR', message: 'Not authenticated' },
+        });
+      }
+
+      const companyId = await getCompanyIdForUser(user, req);
+      if (!companyId) {
+        return res.status(400).json({
+          success: false,
+          error: { 
+            code: 'COMPANY_REQUIRED', 
+            message: user.role === 'DEVELOPER' 
+              ? 'Please select a company or provide x-company-id header'
+              : 'User must be associated with a company' 
+          },
         });
       }
 
@@ -107,7 +147,7 @@ class CompanyController {
         description,
         departmentId: cleanDepartmentId,
         permissions,
-        companyId: user.companyId,
+        companyId,
       });
 
       res.status(201).json(successResponse(role));
@@ -178,10 +218,23 @@ class CompanyController {
   listRoles = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const user = req.user;
-      if (!user || !user.companyId) {
+      if (!user) {
         return res.status(401).json({
           success: false,
-          error: { code: 'AUTH_ERROR', message: 'User must be associated with a company' },
+          error: { code: 'AUTH_ERROR', message: 'Not authenticated' },
+        });
+      }
+
+      const companyId = await getCompanyIdForUser(user, req);
+      if (!companyId) {
+        return res.status(400).json({
+          success: false,
+          error: { 
+            code: 'COMPANY_REQUIRED', 
+            message: user.role === 'DEVELOPER' 
+              ? 'Please select a company or provide x-company-id header'
+              : 'User must be associated with a company' 
+          },
         });
       }
 
@@ -189,7 +242,7 @@ class CompanyController {
       const deptId = departmentId && typeof departmentId === 'string' && departmentId.trim() !== ''
         ? departmentId.trim()
         : undefined;
-      const roles = await companyService.listRoles(user.companyId, deptId);
+      const roles = await companyService.listRoles(companyId, deptId);
       res.json(successResponse(roles));
     } catch (error) {
       next(error);
@@ -211,15 +264,125 @@ class CompanyController {
   getUsers = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const user = req.user;
-      if (!user || !user.companyId) {
+      if (!user) {
         return res.status(401).json({
           success: false,
-          error: { code: 'AUTH_ERROR', message: 'User must be associated with a company' },
+          error: { code: 'AUTH_ERROR', message: 'Not authenticated' },
         });
       }
 
-      const users = await companyService.getUsers(user.companyId);
+      const companyId = await getCompanyIdForUser(user, req);
+      if (!companyId) {
+        return res.status(400).json({
+          success: false,
+          error: { 
+            code: 'COMPANY_REQUIRED', 
+            message: user.role === 'DEVELOPER' 
+              ? 'Please select a company or provide x-company-id header'
+              : 'User must be associated with a company' 
+          },
+        });
+      }
+
+      const users = await companyService.getUsers(companyId);
       res.json(successResponse({ users }));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // GET /api/company/accessible
+  getAccessibleCompanies = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          error: { code: 'UNAUTHORIZED', message: 'Not authenticated' },
+        });
+      }
+
+      const companies = await companyService.getAccessibleCompanies(req.user.id);
+      res.json(successResponse(companies));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // POST /api/company/switch/:companyId
+  switchCompanyContext = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          error: { code: 'UNAUTHORIZED', message: 'Not authenticated' },
+        });
+      }
+
+      const { companyId } = req.params;
+      const company = await companyService.switchCompanyContext(req.user.id, companyId);
+      res.json(successResponse(company));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // GET /api/company
+  getCompany = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          error: { code: 'AUTH_ERROR', message: 'Not authenticated' },
+        });
+      }
+
+      const companyId = await getCompanyIdForUser(user, req);
+      if (!companyId) {
+        return res.status(400).json({
+          success: false,
+          error: { 
+            code: 'COMPANY_REQUIRED', 
+            message: user.role === 'DEVELOPER' 
+              ? 'Please select a company or provide x-company-id header'
+              : 'User must be associated with a company' 
+          },
+        });
+      }
+
+      const company = await companyService.getCompany(companyId);
+      res.json(successResponse(company));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // PUT /api/company
+  updateCompany = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          error: { code: 'AUTH_ERROR', message: 'Not authenticated' },
+        });
+      }
+
+      const companyId = await getCompanyIdForUser(user, req);
+      if (!companyId) {
+        return res.status(400).json({
+          success: false,
+          error: { 
+            code: 'COMPANY_REQUIRED', 
+            message: user.role === 'DEVELOPER' 
+              ? 'Please select a company or provide x-company-id header'
+              : 'User must be associated with a company' 
+          },
+        });
+      }
+
+      const company = await companyService.updateCompany(companyId, req.body);
+      res.json(successResponse(company));
     } catch (error) {
       next(error);
     }

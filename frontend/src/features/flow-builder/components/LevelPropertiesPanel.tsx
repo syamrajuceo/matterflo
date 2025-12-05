@@ -39,19 +39,45 @@ export function LevelPropertiesPanel() {
       // If it's a temp level, it will be saved when the flow is saved
       // If it's an existing level, save to backend now
       if (currentFlow.id && !selectedLevel.id.startsWith('temp-')) {
-        await flowService.updateLevel(currentFlow.id, selectedLevel.id, {
+        // Save to backend
+        const updatedFlow = await flowService.updateLevel(currentFlow.id, selectedLevel.id, {
           name,
           description,
         });
         
-        // Reload the flow to sync with backend
-        const updatedFlow = await flowService.getFlow(currentFlow.id);
+        // Preserve the current order from local state before updating
+        const currentState = useFlowBuilderStore.getState().currentFlow;
+        if (currentState) {
+          // Merge: use updated flow data but preserve the order from current state
+          const currentOrder = currentState.levels.map(l => l.id);
+          const updatedLevels = currentOrder
+            .map(id => {
+              const backendLevel = updatedFlow.levels.find(l => l.id === id);
+              if (!backendLevel) return null;
+              
+              // Use backend data (it has the updated name/description we just saved)
+              return backendLevel;
+            })
+            .filter(Boolean) as IFlowLevel[];
+          
+          // Update the flow with merged data
+          setCurrentFlow({
+            ...updatedFlow,
+            levels: updatedLevels,
+          });
+          
+          // Update selected level to match the updated data
+          const updatedLevel = updatedLevels.find((l) => l.id === selectedLevel.id);
+          if (updatedLevel) {
+            setSelectedLevel(updatedLevel);
+          }
+        } else {
+          // Fallback: use the updated flow as-is
         setCurrentFlow(updatedFlow);
-        
-        // Update selected level to match the reloaded data
         const updatedLevel = updatedFlow.levels.find((l) => l.id === selectedLevel.id);
         if (updatedLevel) {
           setSelectedLevel(updatedLevel);
+          }
         }
         
         setHasUnsavedChanges(false);

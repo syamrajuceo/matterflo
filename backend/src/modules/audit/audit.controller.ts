@@ -2,11 +2,21 @@ import { Request, Response, NextFunction } from 'express';
 import { auditService } from './audit.service';
 import { successResponse } from '../../common/utils/response';
 import { prisma } from '../../common/config/database.config';
+import { getCompanyIdForUser } from '../../common/utils/company-helper';
 
 class AuditController {
   // GET /api/audit/logs
   async getLogs(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      const user = req.user;
+      if (!user) {
+        res.status(401).json({
+          success: false,
+          error: { code: 'AUTH_ERROR', message: 'Not authenticated' },
+        });
+        return;
+      }
+
       const {
         entity,
         entityId,
@@ -18,7 +28,19 @@ class AuditController {
         limit = '50',
       } = req.query;
 
-      const companyId = req.user!.companyId!;
+      const companyId = await getCompanyIdForUser(user, req);
+      if (!companyId) {
+        res.status(400).json({
+          success: false,
+          error: { 
+            code: 'COMPANY_REQUIRED', 
+            message: user.role === 'DEVELOPER' 
+              ? 'Please select a company or provide x-company-id header'
+              : 'User must be associated with a company' 
+          },
+        });
+        return;
+      }
 
       const logs = await auditService.getLogs({
         companyId,
@@ -41,8 +63,30 @@ class AuditController {
   // GET /api/audit/logs/export
   async exportLogs(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      const user = req.user;
+      if (!user) {
+        res.status(401).json({
+          success: false,
+          error: { code: 'AUTH_ERROR', message: 'Not authenticated' },
+        });
+        return;
+      }
+
       const { entity, entityId, action, userId, startDate, endDate } = req.query;
-      const companyId = req.user!.companyId!;
+      
+      const companyId = await getCompanyIdForUser(user, req);
+      if (!companyId) {
+        res.status(400).json({
+          success: false,
+          error: { 
+            code: 'COMPANY_REQUIRED', 
+            message: user.role === 'DEVELOPER' 
+              ? 'Please select a company or provide x-company-id header'
+              : 'User must be associated with a company' 
+          },
+        });
+        return;
+      }
 
       const csv = await auditService.exportLogsCSV({
         companyId,
@@ -65,17 +109,41 @@ class AuditController {
   // POST /api/audit/logs/test - Create test audit logs for testing purposes
   async createTestLogs(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = req.user!.id;
-      const companyId = req.user!.companyId!;
+      const user = req.user;
+      if (!user) {
+        res.status(401).json({
+          success: false,
+          error: { code: 'AUTH_ERROR', message: 'Not authenticated' },
+        });
+        return;
+      }
 
-      // Verify user belongs to company
-      const user = await prisma.user.findUnique({
+      const userId = user.id;
+      const companyId = await getCompanyIdForUser(user, req);
+      if (!companyId) {
+        res.status(400).json({
+          success: false,
+          error: { 
+            code: 'COMPANY_REQUIRED', 
+            message: user.role === 'DEVELOPER' 
+              ? 'Please select a company or provide x-company-id header'
+              : 'User must be associated with a company' 
+          },
+        });
+        return;
+      }
+
+      // For DEVELOPER users, skip company verification
+      // For other users, verify they belong to the company
+      if (user.role !== 'DEVELOPER') {
+        const dbUser = await prisma.user.findUnique({
         where: { id: userId },
       });
 
-      if (!user || user.companyId !== companyId) {
+        if (!dbUser || dbUser.companyId !== companyId) {
         res.status(403).json({ success: false, error: { message: 'Unauthorized' } });
         return;
+        }
       }
 
       const testLogs = [

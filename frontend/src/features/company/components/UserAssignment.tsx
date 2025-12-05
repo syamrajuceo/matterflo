@@ -17,7 +17,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { User as UserIcon } from 'lucide-react';
 
 export const UserAssignment = () => {
-  const { roles, setIsLoading, search } = useCompanyStore();
+  const { roles, setRoles, setIsLoading, search } = useCompanyStore();
   const { showToast } = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [assigningUserId, setAssigningUserId] = useState<string | null>(null);
@@ -41,8 +41,20 @@ export const UserAssignment = () => {
       }
     };
 
+    const loadRoles = async () => {
+      try {
+        // Always load all roles (no department filter) for user assignment
+        const fetchedRoles = await companyService.listRoles();
+        setRoles(fetchedRoles);
+      } catch (error) {
+        console.error('Failed to load roles', error);
+        // Don't show toast for roles, just log it
+      }
+    };
+
     void loadUsers();
-  }, [setIsLoading, showToast]);
+    void loadRoles();
+  }, [setIsLoading, setRoles, showToast]);
 
   const filteredUsers = users.filter((user) => {
     if (search) {
@@ -79,11 +91,26 @@ export const UserAssignment = () => {
         description: 'The user has been assigned to the role successfully.',
         status: 'success',
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to assign user to role', error);
+      
+      // Extract error message from backend response
+      let errorMessage = 'Please try again after reloading the page.';
+      if (error?.response?.data?.error?.message) {
+        errorMessage = error.response.data.error.message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      // Check if it's a custom role that can't be assigned
+      const selectedRole = roles.find((r) => r.id === selectedRoleId);
+      if (selectedRole && !['DEVELOPER', 'ADMIN', 'MANAGER', 'EMPLOYEE'].includes(selectedRole.name)) {
+        errorMessage = `Custom roles like "${selectedRole.name}" cannot be assigned to users. Only system roles (Developer, Admin, Manager, Employee) can be assigned.`;
+      }
+      
       showToast({
         title: 'Failed to assign user',
-        description: 'Please try again after reloading the page.',
+        description: errorMessage,
         status: 'error',
       });
     } finally {
@@ -145,11 +172,21 @@ export const UserAssignment = () => {
                             <SelectValue placeholder="Select role" />
                           </SelectTrigger>
                           <SelectContent>
-                            {roles.map((role) => (
-                              <SelectItem key={role.id} value={role.id}>
+                            {roles.length === 0 ? (
+                              <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                                No roles available. Create a role first.
+                              </div>
+                            ) : (
+                              roles.map((role) => {
+                                const isSystemRole = ['DEVELOPER', 'ADMIN', 'MANAGER', 'EMPLOYEE'].includes(role.name);
+                                return (
+                                  <SelectItem key={role.id} value={role.id} disabled={!isSystemRole}>
                                 {role.name}
+                                    {!isSystemRole && ' (Custom - cannot assign)'}
                               </SelectItem>
-                            ))}
+                                );
+                              })
+                            )}
                           </SelectContent>
                         </Select>
                         <Button

@@ -23,6 +23,11 @@ export function FieldPropertiesPanel() {
   const [placeholder, setPlaceholder] = useState(selectedField?.placeholder || '');
   const [required, setRequired] = useState(selectedField?.required || false);
   const [fieldType, setFieldType] = useState<FieldType>(selectedField?.type || 'text');
+  const [optionsText, setOptionsText] = useState('');
+  const [minValue, setMinValue] = useState<string>('');
+  const [maxValue, setMaxValue] = useState<string>('');
+  const [minLength, setMinLength] = useState<string>('');
+  const [maxLength, setMaxLength] = useState<string>('');
 
   // Update form when selected field changes
   useEffect(() => {
@@ -31,6 +36,31 @@ export function FieldPropertiesPanel() {
       setPlaceholder(selectedField.placeholder || '');
       setRequired(selectedField.required);
       setFieldType(selectedField.type);
+      
+      // Load options for dropdown/multi-select fields
+      if ((selectedField.type === 'dropdown' || selectedField.type === 'multi-select') && selectedField.validation?.options) {
+        setOptionsText(selectedField.validation.options.join('\n'));
+      } else {
+        setOptionsText('');
+      }
+      
+      // Load min/max for number fields
+      if (selectedField.type === 'number') {
+        setMinValue(selectedField.validation?.min?.toString() || '');
+        setMaxValue(selectedField.validation?.max?.toString() || '');
+      } else {
+        setMinValue('');
+        setMaxValue('');
+      }
+      
+      // Load minLength/maxLength for text fields
+      if (selectedField.type === 'text') {
+        setMinLength(selectedField.validation?.minLength?.toString() || '');
+        setMaxLength(selectedField.validation?.maxLength?.toString() || '');
+      } else {
+        setMinLength('');
+        setMaxLength('');
+      }
     }
   }, [selectedField]);
 
@@ -41,11 +71,57 @@ export function FieldPropertiesPanel() {
   const handleSave = async () => {
     if (!currentTask || !selectedField) return;
 
+    // Parse options from textarea (split by newline, trim, filter empty)
+    let validation = selectedField.validation || {};
+    
+    if (fieldType === 'dropdown' || fieldType === 'multi-select') {
+      const options = optionsText
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
+      
+      validation = {
+        ...validation,
+        options: options.length > 0 ? options : undefined,
+      };
+      // Remove number-specific validations
+      const { min, max, ...restValidation } = validation;
+      validation = restValidation;
+      // Remove text-specific validations
+      const { minLength: ml, maxLength: mxl, ...restValidation2 } = validation;
+      validation = restValidation2;
+    } else if (fieldType === 'number') {
+      // Handle min/max for number fields
+      validation = {
+        ...validation,
+        min: minValue.trim() ? Number(minValue) : undefined,
+        max: maxValue.trim() ? Number(maxValue) : undefined,
+      };
+      // Remove options and text-specific validations
+      const { options, minLength: ml, maxLength: mxl, ...restValidation } = validation;
+      validation = restValidation;
+    } else if (fieldType === 'text') {
+      // Handle minLength/maxLength for text fields
+      validation = {
+        ...validation,
+        minLength: minLength.trim() ? Number(minLength) : undefined,
+        maxLength: maxLength.trim() ? Number(maxLength) : undefined,
+      };
+      // Remove options and number-specific validations
+      const { options, min, max, ...restValidation } = validation;
+      validation = restValidation;
+    } else {
+      // Remove all type-specific validations for other field types
+      const { options, min, max, minLength: ml, maxLength: mxl, ...restValidation } = validation;
+      validation = restValidation;
+    }
+
     const updates = {
       label,
       placeholder: placeholder || undefined,
       required,
       type: fieldType,
+      validation: Object.keys(validation).length > 0 ? validation : undefined,
     };
 
     try {
@@ -119,7 +195,22 @@ export function FieldPropertiesPanel() {
           <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Type</label>
           <select
             value={fieldType}
-            onChange={(e) => setFieldType(e.target.value as FieldType)}
+            onChange={(e) => {
+              const newType = e.target.value as FieldType;
+              setFieldType(newType);
+              // Clear validation fields when type changes
+              if (newType !== 'number') {
+                setMinValue('');
+                setMaxValue('');
+              }
+              if (newType !== 'text') {
+                setMinLength('');
+                setMaxLength('');
+              }
+              if (newType !== 'dropdown' && newType !== 'multi-select') {
+                setOptionsText('');
+              }
+            }}
             className="w-full rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="text">Text</option>
@@ -179,10 +270,66 @@ export function FieldPropertiesPanel() {
           <div>
             <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Options</label>
             <textarea
+              value={optionsText}
+              onChange={(e) => setOptionsText(e.target.value)}
               placeholder="Enter options, one per line"
               className="min-h-[80px] w-full rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             />
             <p className="mt-0.5 text-[9px] text-slate-400">One option per line</p>
+          </div>
+        )}
+
+        {/* Min/Max for Number fields */}
+        {fieldType === 'number' && (
+          <div className="space-y-2">
+            <div>
+              <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Min</label>
+              <input
+                type="number"
+                value={minValue}
+                onChange={(e) => setMinValue(e.target.value)}
+                placeholder="Minimum value"
+                className="w-full rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Max</label>
+              <input
+                type="number"
+                value={maxValue}
+                onChange={(e) => setMaxValue(e.target.value)}
+                placeholder="Maximum value"
+                className="w-full rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* MinLength/MaxLength for Text fields */}
+        {fieldType === 'text' && (
+          <div className="space-y-2">
+            <div>
+              <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Min Length</label>
+              <input
+                type="number"
+                value={minLength}
+                onChange={(e) => setMinLength(e.target.value)}
+                placeholder="Minimum length"
+                min="0"
+                className="w-full rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Max Length</label>
+              <input
+                type="number"
+                value={maxLength}
+                onChange={(e) => setMaxLength(e.target.value)}
+                placeholder="Maximum length"
+                min="0"
+                className="w-full rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
           </div>
         )}
       </div>

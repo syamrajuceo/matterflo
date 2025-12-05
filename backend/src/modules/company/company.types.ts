@@ -45,4 +45,25 @@ export interface ICreateRoleRequest {
 
 export type IUpdateRoleRequest = Partial<Omit<IRole, 'id' | 'companyId' | 'createdAt' | 'updatedAt'>>;
 
+export interface ICompany {
+  id: string;
+  name: string;
+  domain: string | null;
+  logo: string | null;
+  isActive: boolean;
+  primaryColor: string;
+  secondaryColor: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface IUpdateCompanyRequest {
+  name?: string;
+  domain?: string | null;
+  logo?: string | null;
+  primaryColor?: string;
+  secondaryColor?: string;
+  isActive?: boolean;
+}
+
 

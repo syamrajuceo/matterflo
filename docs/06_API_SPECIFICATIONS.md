@@ -20,6 +20,8 @@
 8. [Integrations](#integrations)
 9. [Audit Logs](#audit-logs)
 10. [Users](#users)
+11. [Versions](#versions)
+12. [Export](#export)
 
 ---
 
@@ -1517,6 +1519,233 @@ Update user details.
 
 ---
 
+## 📦 Versions
+
+### Create Version
+
+**POST** `/api/versions`
+
+Create a version snapshot of an entity (Task, Flow, Dataset, or CustomTable).
+
+**Authentication:** Required (Developer only)
+
+**Request Body:**
+```json
+{
+  "entityType": "Task",
+  "entityId": "task_123",
+  "changes": "Updated form fields and validations"
+}
+```
+
+**Response (201):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "version_123",
+    "version": "1.0.1",
+    "entityType": "Task",
+    "entityId": "task_123",
+    "snapshot": { ... },
+    "changes": "Updated form fields and validations",
+    "status": "DRAFT",
+    "rolloutPercentage": 0,
+    "createdBy": "user_123",
+    "createdAt": "2024-01-20T10:00:00Z"
+  }
+}
+```
+
+---
+
+### Get Version History
+
+**GET** `/api/versions/:entityType/:entityId`
+
+Get version history for an entity.
+
+**Authentication:** Required (Developer only)
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "version_123",
+      "version": "1.0.1",
+      "status": "PUBLISHED",
+      "changes": "Updated form fields",
+      "createdAt": "2024-01-20T10:00:00Z",
+      "publishedAt": "2024-01-20T11:00:00Z"
+    },
+    {
+      "id": "version_122",
+      "version": "1.0.0",
+      "status": "STABLE",
+      "changes": "Initial version",
+      "createdAt": "2024-01-19T10:00:00Z"
+    }
+  ]
+}
+```
+
+---
+
+### Publish Version
+
+**POST** `/api/versions/:id/publish`
+
+Publish a version (change status from DRAFT to PUBLISHED).
+
+**Authentication:** Required (Developer only)
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "version_123",
+    "version": "1.0.1",
+    "status": "PUBLISHED",
+    "publishedAt": "2024-01-20T11:00:00Z"
+  }
+}
+```
+
+---
+
+### Rollback Version
+
+**POST** `/api/versions/:id/rollback`
+
+Rollback an entity to a previous version.
+
+**Authentication:** Required (Developer only)
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "success": true,
+    "message": "Rolled back to version 1.0.0"
+  }
+}
+```
+
+---
+
+## 📤 Export
+
+### Export Company ERP
+
+**GET** `/api/export/:companyId`
+
+Get export package for a company (includes all published tasks, flows, datasets, tables, integrations).
+
+**Authentication:** Required (Developer only)
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "company": {
+      "id": "company_123",
+      "name": "Acme Corp",
+      "domain": "acme.erp.com",
+      "logo": "https://...",
+      "primaryColor": "#3B82F6",
+      "secondaryColor": "#1A1F2E"
+    },
+    "tasks": [...],
+    "flows": [...],
+    "datasets": [...],
+    "tables": [...],
+    "integrations": [...],
+    "config": {
+      "version": "1.0.0",
+      "exportedAt": "2024-01-20T10:00:00Z",
+      "includesDeveloperPanel": true
+    }
+  }
+}
+```
+
+---
+
+### Download Export
+
+**GET** `/api/export/:companyId/download`
+
+Download export package as JSON file.
+
+**Authentication:** Required (Developer only)
+
+**Response (200):**
+- Content-Type: `application/json`
+- Content-Disposition: `attachment; filename="erp-export-{companyId}-{timestamp}.json"`
+- Body: JSON export package
+
+---
+
+## 🏢 Company Switching
+
+### Get Accessible Companies
+
+**GET** `/api/company/accessible`
+
+Get all companies accessible by the current user (developers see all, others see only their company).
+
+**Authentication:** Required
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "company_123",
+      "name": "Acme Corp",
+      "domain": "acme.erp.com",
+      "logo": "https://...",
+      "primaryColor": "#3B82F6",
+      "secondaryColor": "#1A1F2E",
+      "isActive": true
+    }
+  ]
+}
+```
+
+---
+
+### Switch Company Context
+
+**POST** `/api/company/switch/:companyId`
+
+Switch active company context (developers only).
+
+**Authentication:** Required (Developer only)
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "company_123",
+    "name": "Acme Corp",
+    "domain": "acme.erp.com",
+    "logo": "https://...",
+    "primaryColor": "#3B82F6",
+    "secondaryColor": "#1A1F2E"
+  }
+}
+```
+
+---
+
 ## 📊 Standard Response Format
 
 All API responses follow this format:
@@ -1669,6 +1898,20 @@ GET /api/tasks?sortBy=createdAt&order=desc
 - [x] POST /api/database/tables/:id/records
 - [x] GET /api/database/tables/:id/records
 
-**Complete API reference with 50+ endpoints documented!**
+**Versions:**
+- [x] POST /api/versions
+- [x] GET /api/versions/:entityType/:entityId
+- [x] POST /api/versions/:id/publish
+- [x] POST /api/versions/:id/rollback
+
+**Export:**
+- [x] GET /api/export/:companyId
+- [x] GET /api/export/:companyId/download
+
+**Company Switching:**
+- [x] GET /api/company/accessible
+- [x] POST /api/company/switch/:companyId
+
+**Complete API reference with 60+ endpoints documented!**
 
 ---

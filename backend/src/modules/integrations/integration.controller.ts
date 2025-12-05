@@ -2,16 +2,30 @@ import { Request, Response, NextFunction } from 'express';
 import { integrationService } from './integration.service';
 import { webhookConnector } from './connectors/webhook.connector';
 import { successResponse } from '../../common/utils/response';
+import { getCompanyIdForUser } from '../../common/utils/company-helper';
 
 class IntegrationController {
   // POST /api/integrations
   createIntegration = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const user = req.user;
-      if (!user || !user.companyId) {
+      if (!user) {
         return res.status(401).json({
           success: false,
-          error: { code: 'AUTH_ERROR', message: 'User must be associated with a company' },
+          error: { code: 'AUTH_ERROR', message: 'Not authenticated' },
+        });
+      }
+
+      const companyId = await getCompanyIdForUser(user, req);
+      if (!companyId) {
+        return res.status(400).json({
+          success: false,
+          error: { 
+            code: 'COMPANY_REQUIRED', 
+            message: user.role === 'DEVELOPER' 
+              ? 'Please select a company or provide x-company-id header'
+              : 'User must be associated with a company' 
+          },
         });
       }
 
@@ -23,7 +37,7 @@ class IntegrationController {
         name: req.body.name,
         type: req.body.type,
         config: req.body.config || {},
-        companyId: user.companyId,
+        companyId,
         baseUrl,
       });
 
@@ -37,14 +51,27 @@ class IntegrationController {
   listIntegrations = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const user = req.user;
-      if (!user || !user.companyId) {
+      if (!user) {
         return res.status(401).json({
           success: false,
-          error: { code: 'AUTH_ERROR', message: 'User must be associated with a company' },
+          error: { code: 'AUTH_ERROR', message: 'Not authenticated' },
         });
       }
 
-      const integrations = await integrationService.listIntegrations(user.companyId);
+      const companyId = await getCompanyIdForUser(user, req);
+      if (!companyId) {
+        return res.status(400).json({
+          success: false,
+          error: { 
+            code: 'COMPANY_REQUIRED', 
+            message: user.role === 'DEVELOPER' 
+              ? 'Please select a company or provide x-company-id header'
+              : 'User must be associated with a company' 
+          },
+        });
+      }
+
+      const integrations = await integrationService.listIntegrations(companyId);
       res.json(successResponse(integrations));
     } catch (error) {
       next(error);

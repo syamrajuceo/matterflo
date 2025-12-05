@@ -45,6 +45,8 @@ export const RoleManager = () => {
       try {
         setIsLoading(true);
         const fetchedRoles = await companyService.listRoles();
+        console.log('Loaded roles:', fetchedRoles);
+        console.log('Number of roles:', fetchedRoles.length);
         setRoles(fetchedRoles);
       } catch (error) {
         console.error('Failed to load roles', error);
@@ -72,15 +74,27 @@ export const RoleManager = () => {
   };
 
   const filteredRoles = useMemo(() => {
-    return roles.filter((role) => {
+    console.log('Filtering roles:', {
+      totalRoles: roles.length,
+      search,
+      selectedDepartmentId,
+      roles: roles.map(r => ({ name: r.name, departmentId: r.departmentId }))
+    });
+    const filtered = roles.filter((role) => {
       if (search && !role.name.toLowerCase().includes(search.toLowerCase())) {
         return false;
       }
-      if (selectedDepartmentId && role.departmentId !== selectedDepartmentId) {
+      // If a department is selected, show roles for that department OR company-wide roles
+      if (selectedDepartmentId) {
+        // Show role if it belongs to selected department OR if it's company-wide (no department)
+        if (role.departmentId && role.departmentId !== selectedDepartmentId) {
         return false;
+        }
       }
       return true;
     });
+    console.log('Filtered roles count:', filtered.length);
+    return filtered;
   }, [roles, search, selectedDepartmentId]);
 
   const handleOpenCreate = () => {
@@ -144,9 +158,14 @@ export const RoleManager = () => {
         });
       }
       
-      // Reload roles list to get updated data
+      // Reload roles list to get updated data (load all roles, no department filter)
       const updatedRoles = await companyService.listRoles();
+      console.log('Roles after creation/update:', updatedRoles);
+      console.log('Number of roles after creation/update:', updatedRoles.length);
       setRoles(updatedRoles);
+      
+      // If a department was selected, keep it selected so the filter still applies
+      // The new role will show if it matches the selected department or is company-wide
       
       // Reset form and close dialog
       setEditingRole(null);
@@ -161,11 +180,28 @@ export const RoleManager = () => {
         manage: false,
       });
       setIsCreateOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save role', error);
+      
+      // Extract error message from backend response
+      let errorMessage = 'Please try again after reloading the page.';
+      if (error?.response?.data?.error?.message) {
+        errorMessage = error.response.data.error.message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      // If it's a duplicate role error, provide helpful suggestion
+      if (errorMessage.includes('already exists')) {
+        const existingName = error?.response?.data?.error?.details?.existingName;
+        if (existingName) {
+          errorMessage = `A role named "${existingName}" already exists. Please use a different name or edit the existing role.`;
+        }
+      }
+      
       showToast({
         title: editingRole ? 'Failed to update role' : 'Failed to create role',
-        description: 'Please try again after reloading the page.',
+        description: errorMessage,
         status: 'error',
       });
     } finally {

@@ -4,7 +4,7 @@
  * These types match the backend structure for actions
  */
 
-export type ActionType = 'email' | 'flow' | 'database' | 'webhook' | 'task';
+export type ActionType = 'email' | 'flow' | 'database' | 'webhook' | 'task' | 'pdf';
 
 export type SendToType = 'role' | 'user' | 'email' | 'dynamic';
 
@@ -61,7 +61,19 @@ export interface ITaskAction {
   contextData?: Record<string, any>;
 }
 
-export type IAction = IEmailAction | IFlowAction | IDatabaseAction | IWebhookAction | ITaskAction;
+export interface IPdfAction {
+  type: 'pdf';
+  sourceType: 'task' | 'flow' | 'custom';
+  sourceId?: string; // Task ID or Flow Instance ID
+  template?: string; // Custom template content
+  filename?: string; // Output filename (supports {{variables}})
+  includeData?: boolean; // Include form data/execution data
+  attachToEmail?: boolean; // Attach to email action
+  emailActionIndex?: number; // Index of email action to attach to
+  variables?: Record<string, any>; // Additional variables for template
+}
+
+export type IAction = IEmailAction | IFlowAction | IDatabaseAction | IWebhookAction | ITaskAction | IPdfAction;
 
 // Action type labels
 export const ACTION_TYPE_LABELS: Record<ActionType, string> = {
@@ -70,6 +82,7 @@ export const ACTION_TYPE_LABELS: Record<ActionType, string> = {
   database: 'Update Database',
   webhook: 'Call Webhook',
   task: 'Assign Task',
+  pdf: 'Generate PDF',
 };
 
 // Action type icons (using emoji for now, can be replaced with Lucide icons)
@@ -79,5 +92,6 @@ export const ACTION_TYPE_ICONS: Record<ActionType, string> = {
   database: '💾',
   webhook: '🔗',
   task: '📋',
+  pdf: '📄',
 };
 

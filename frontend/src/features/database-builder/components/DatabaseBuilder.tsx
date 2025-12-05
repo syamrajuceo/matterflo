@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Save, Plus, Trash2, Download, Upload, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Save, Plus, Trash2, Download, Upload, ChevronRight, ChevronLeft, History } from 'lucide-react';
 import { useDatabaseStore } from '../store/databaseStore';
 import { databaseService } from '../services/database.service';
 import { TableList } from './TableList';
 import { TableDesigner } from './TableDesigner';
 import { FieldEditor } from './FieldEditor';
 import { ImportExport } from './ImportExport';
+import { VersionHistory } from '../../versions/components/VersionHistory';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -35,6 +36,7 @@ export function DatabaseBuilder() {
 
   const [isNewTableDialogOpen, setIsNewTableDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
   const [newTableName, setNewTableName] = useState('');
   const [newTableDisplayName, setNewTableDisplayName] = useState('');
   const [newTableDescription, setNewTableDescription] = useState('');
@@ -232,6 +234,14 @@ export function DatabaseBuilder() {
         <div className="flex items-center gap-2">
           {currentTable && (
             <>
+              <Button
+                onClick={() => setIsVersionHistoryOpen(true)}
+                variant="outline"
+                size="sm"
+              >
+                <History className="h-4 w-4 mr-2" />
+                Version History
+              </Button>
               <Button variant="outline" size="sm" onClick={() => setIsDeleteDialogOpen(true)}>
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete
@@ -370,6 +380,18 @@ export function DatabaseBuilder() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Version History Dialog */}
+      {currentTable && currentTable.id && (
+        <Dialog open={isVersionHistoryOpen} onOpenChange={setIsVersionHistoryOpen}>
+          <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Version History: {currentTable.displayName}</DialogTitle>
+            </DialogHeader>
+            <VersionHistory entityType="CustomTable" entityId={currentTable.id} />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

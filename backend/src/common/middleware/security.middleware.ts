@@ -29,10 +29,11 @@ export const authLimiter = rateLimit({
 
 /**
  * General API rate limiter
+ * More lenient in development mode
  */
 export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: process.env.NODE_ENV === 'production' ? 100 : 1000, // Much higher limit in development
   message: {
     success: false,
     error: {
@@ -46,6 +47,8 @@ export const apiLimiter = rateLimit({
     // Skip rate limiting for health check
     return req.path === '/health';
   },
+  // Skip rate limiting entirely in development if needed
+  skipSuccessfulRequests: process.env.NODE_ENV === 'development',
 });
 
 /**

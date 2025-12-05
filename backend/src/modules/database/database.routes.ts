@@ -30,30 +30,35 @@ const upload = multer({
   },
 });
 
+import { requireDeveloper } from '../../common/middleware/authorization.middleware';
+
 // All database routes require authentication
 router.use(authenticateToken);
 
 // Table CRUD operations
-router.post('/', validate(createTableSchema), databaseController.createTable);
+// SCHEMA OPERATIONS - Only developers
+router.post('/', requireDeveloper, validate(createTableSchema), databaseController.createTable);
+router.put('/:id', requireDeveloper, validate(updateTableSchema), databaseController.updateTable);
+
+// READ - All authenticated users
 router.get('/', databaseController.listTables);
 router.get('/:id', databaseController.getTable);
-router.put('/:id', validate(updateTableSchema), databaseController.updateTable);
 
-// Field operations
-router.post('/:id/fields', validate(addFieldSchema), databaseController.addField);
-router.put('/:id/fields/:fieldId', validate(updateFieldSchema), databaseController.updateField);
-router.delete('/:id/fields/:fieldId', databaseController.deleteField);
+// Field operations - Only developers (schema changes)
+router.post('/:id/fields', requireDeveloper, validate(addFieldSchema), databaseController.addField);
+router.put('/:id/fields/:fieldId', requireDeveloper, validate(updateFieldSchema), databaseController.updateField);
+router.delete('/:id/fields/:fieldId', requireDeveloper, databaseController.deleteField);
 
-// Relation operations
-router.post('/:id/relations', validate(createRelationSchema), databaseController.createRelation);
+// Relation operations - Only developers (schema changes)
+router.post('/:id/relations', requireDeveloper, validate(createRelationSchema), databaseController.createRelation);
 
-// Record operations
+// Record operations - All authenticated users (data management)
 router.post('/:id/records', validate(insertRecordSchema), databaseController.insertRecord);
 router.get('/:id/records', databaseController.queryRecords);
 router.put('/:id/records/:recordId', validate(updateRecordSchema), databaseController.updateRecord);
 router.delete('/:id/records/:recordId', databaseController.deleteRecord);
 
-// Import/Export operations
+// Import/Export operations - All authenticated users
 router.post('/:id/import', upload.single('file'), databaseController.importCSV);
 router.get('/:id/export', databaseController.exportCSV);
 

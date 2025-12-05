@@ -56,8 +56,13 @@ class TaskService {
 
       const where: any = {
         companyId: filters.companyId,
+        // Exclude archived tasks by default
+        status: {
+          not: 'ARCHIVED'
+        }
       };
 
+      // If status filter is explicitly provided, override the default
       if (filters.status) {
         where.status = filters.status;
       }
@@ -256,10 +261,17 @@ class TaskService {
       const fieldMap = new Map(fields.map((f) => [f.id, f]));
 
       // Validate all field IDs exist
+      const missingFieldIds: string[] = [];
       for (const fieldId of fieldIds) {
         if (!fieldMap.has(fieldId)) {
-          throw new NotFoundError(`Field with ID ${fieldId}`);
+          missingFieldIds.push(fieldId);
         }
+      }
+      
+      if (missingFieldIds.length > 0) {
+        console.error(`[ReorderFields] Missing field IDs: ${missingFieldIds.join(', ')}`);
+        console.error(`[ReorderFields] Available field IDs: ${Array.from(fieldMap.keys()).join(', ')}`);
+        throw new NotFoundError(`Field(s) not found: ${missingFieldIds.join(', ')}`);
       }
 
       // Reorder fields based on provided order

@@ -1,12 +1,20 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Plus, FileText, Search } from 'lucide-react';
+import { Plus, FileText, Search, MoreVertical, Trash2, Edit } from 'lucide-react';
 import axios from 'axios';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { taskService } from '../services/task.service';
+import { useToast } from '@/components/ui/use-toast';
 
 interface Task {
   id: string;
@@ -19,26 +27,65 @@ interface Task {
 export function TaskSidebar() {
   const { id: currentTaskId } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+
+  const fetchTasks = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get('/tasks', {
+        params: { limit: 50 },
+      });
+      const tasksData = response.data.data.tasks || [];
+      console.log('[TaskSidebar] Fetched tasks:', tasksData.length, tasksData);
+      setTasks(tasksData);
+    } catch (error: any) {
+      console.error('[TaskSidebar] Failed to fetch tasks:', error);
+      console.error('[TaskSidebar] Error details:', {
+        status: error?.response?.status,
+        message: error?.response?.data?.error?.message,
+        data: error?.response?.data,
+      });
+      setTasks([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchTasks();
   }, []);
 
-  const fetchTasks = async () => {
-    try {
-      const response = await axios.get('/tasks', {
-        params: { limit: 50 },
-      });
-      setTasks(response.data.data.tasks || []);
-    } catch (error) {
-      console.error('Failed to fetch tasks:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Listen for task updates to refresh the list
+  useEffect(() => {
+    const handleTaskUpdate = (event?: Event) => {
+      const customEvent = event as CustomEvent;
+      console.log('[TaskSidebar] Task update event received:', customEvent?.type, customEvent?.detail);
+      // Use a small delay to ensure backend has processed the change
+      setTimeout(() => {
+        fetchTasks();
+      }, 300);
+    };
+
+    // Listen for custom events when tasks are created/updated
+    window.addEventListener('task:created', handleTaskUpdate);
+    window.addEventListener('task:updated', handleTaskUpdate);
+    window.addEventListener('task:saved', handleTaskUpdate);
+    
+    // Also listen for company switch events
+    window.addEventListener('companySwitched', handleTaskUpdate);
+
+    return () => {
+      window.removeEventListener('task:created', handleTaskUpdate);
+      window.removeEventListener('task:updated', handleTaskUpdate);
+      window.removeEventListener('task:saved', handleTaskUpdate);
+      window.removeEventListener('task:deleted', handleTaskUpdate);
+      window.removeEventListener('companySwitched', handleTaskUpdate);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // fetchTasks is stable, no need to include in deps
 
   const filteredTasks = tasks.filter((task) =>
     task.name.toLowerCase().includes(search.toLowerCase())
@@ -50,6 +97,44 @@ export function TaskSidebar() {
 
   const handleSelectTask = (taskId: string) => {
     navigate(`/tasks/${taskId}`);
+  };
+
+  const handleDeleteTask = async (taskId: string, taskName: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (!confirm(`Are you sure you want to delete "${taskName}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await taskService.deleteTask(taskId);
+      
+      // Remove from local state immediately
+      setTasks(tasks.filter((t) => t.id !== taskId));
+      
+      // Dispatch event to ensure other components refresh
+      window.dispatchEvent(new CustomEvent('task:deleted', { detail: { taskId } }));
+      
+      // If the deleted task was the current one, navigate away
+      if (taskId === currentTaskId) {
+        navigate('/tasks/new');
+      }
+      
+      showToast({
+        title: 'Task deleted',
+        description: `"${taskName}" has been deleted.`,
+        status: 'success',
+      });
+    } catch (error: any) {
+      console.error('Failed to delete task:', error);
+      const errorMessage =
+        error?.response?.data?.error?.message || error?.message || 'Failed to delete task';
+      showToast({
+        title: 'Failed to delete task',
+        description: errorMessage,
+        status: 'error',
+      });
+    }
   };
 
   return (
@@ -107,32 +192,67 @@ export function TaskSidebar() {
             {filteredTasks.map((task) => {
               const isActive = task.id === currentTaskId;
               return (
-                <button
+                <div
                   key={task.id}
-                  onClick={() => handleSelectTask(task.id)}
-                  className={`w-full text-left rounded-md p-2 transition ${
+                  className={`group w-full rounded-md p-2 transition ${
                     isActive
                       ? 'bg-blue-50 border border-blue-200'
                       : 'hover:bg-slate-50 border border-transparent'
                   }`}
                 >
-                  <div className="flex items-center justify-between gap-1.5 mb-0.5">
-                    <span className={`text-xs font-medium line-clamp-1 ${
-                      isActive ? 'text-blue-700' : 'text-slate-700'
-                    }`}>
-                      {task.name}
-                    </span>
-                    <Badge
-                      variant={task.status === 'PUBLISHED' ? 'default' : 'secondary'}
-                      className="shrink-0 h-4 text-[9px] px-1"
-                    >
-                      {task.status === 'PUBLISHED' ? 'LIVE' : 'DRAFT'}
-                    </Badge>
-                  </div>
-                  <div className="text-[9px] text-slate-400">
-                    v{task.version}
-                  </div>
-                </button>
+                  <button
+                    onClick={() => handleSelectTask(task.id)}
+                    className="w-full text-left"
+                  >
+                    <div className="flex items-center justify-between gap-1.5 mb-0.5">
+                      <span className={`text-xs font-medium line-clamp-1 flex-1 ${
+                        isActive ? 'text-blue-700' : 'text-slate-700'
+                      }`}>
+                        {task.name}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <Badge
+                          variant={task.status === 'PUBLISHED' ? 'default' : 'secondary'}
+                          className="shrink-0 h-4 text-[9px] px-1"
+                        >
+                          {task.status === 'PUBLISHED' ? 'LIVE' : 'DRAFT'}
+                        </Badge>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              onClick={(e) => e.stopPropagation()}
+                              className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-slate-200 rounded transition"
+                            >
+                              <MoreVertical className="h-3 w-3 text-slate-500" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuItem
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSelectTask(task.id);
+                              }}
+                              className="cursor-pointer"
+                            >
+                              <Edit className="mr-2 h-3.5 w-3.5" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={(e) => handleDeleteTask(task.id, task.name, e)}
+                              className="cursor-pointer text-red-600 focus:text-red-600"
+                            >
+                              <Trash2 className="mr-2 h-3.5 w-3.5" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
+                    <div className="text-[9px] text-slate-400">
+                      v{task.version}
+                    </div>
+                  </button>
+                </div>
               );
             })}
           </div>

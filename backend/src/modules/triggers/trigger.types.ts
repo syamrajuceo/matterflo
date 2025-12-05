@@ -15,7 +15,7 @@ export interface IConditionGroup {
 }
 
 // Action types
-export type ActionType = 'email' | 'flow' | 'database' | 'webhook' | 'task';
+export type ActionType = 'email' | 'flow' | 'database' | 'webhook' | 'task' | 'pdf';
 
 export interface IEmailAction {
   type: 'email';
@@ -55,7 +55,19 @@ export interface ITaskAction {
   contextData?: Record<string, any>;
 }
 
-export type IAction = IEmailAction | IFlowAction | IDatabaseAction | IWebhookAction | ITaskAction;
+export interface IPdfAction {
+  type: 'pdf';
+  sourceType: 'task' | 'flow' | 'custom';
+  sourceId?: string; // Task ID or Flow Instance ID
+  template?: string; // Custom template name
+  filename?: string; // Output filename (supports {{variables}})
+  includeData?: boolean; // Include form data/execution data
+  attachToEmail?: boolean; // Attach to email action
+  emailActionIndex?: number; // Index of email action to attach to
+  variables?: Record<string, any>; // Additional variables for template
+}
+
+export type IAction = IEmailAction | IFlowAction | IDatabaseAction | IWebhookAction | ITaskAction | IPdfAction;
 
 // Trigger interfaces
 export interface ITrigger {

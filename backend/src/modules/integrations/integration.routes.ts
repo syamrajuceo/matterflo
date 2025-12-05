@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { authenticateToken } from '../auth/auth.middleware';
+import { requireDeveloper } from '../../common/middleware/authorization.middleware';
 import { validate } from '../../common/middleware/validation.middleware';
 import { integrationController } from './integration.controller';
 import { createIntegrationSchema, createWorkflowSchema } from './integration.validation';
@@ -14,14 +15,17 @@ router.use(authenticateToken);
 router.post('/webhooks/:webhookId', integrationController.handleWebhook);
 
 // Integration CRUD
-router.post('/', validate(createIntegrationSchema), integrationController.createIntegration);
+// CREATE/DELETE - Only developers
+router.post('/', requireDeveloper, validate(createIntegrationSchema), integrationController.createIntegration);
+router.delete('/:id', requireDeveloper, integrationController.deleteIntegration);
+
+// READ - All authenticated users
 router.get('/', integrationController.listIntegrations);
 router.get('/:id', integrationController.getIntegration);
-router.delete('/:id', integrationController.deleteIntegration);
 
-// Workflows
-router.post('/:id/workflows', validate(createWorkflowSchema), integrationController.createWorkflow);
-router.post('/:id/workflows/:workflowId/test', integrationController.testWorkflow);
+// Workflows - Only developers
+router.post('/:id/workflows', requireDeveloper, validate(createWorkflowSchema), integrationController.createWorkflow);
+router.post('/:id/workflows/:workflowId/test', requireDeveloper, integrationController.testWorkflow);
 
 export default router;
 

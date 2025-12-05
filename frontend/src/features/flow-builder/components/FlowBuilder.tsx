@@ -1,15 +1,17 @@
 import { useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Save, Play, Zap, Send, ChevronRight, ChevronLeft, Maximize2, Minimize2 } from 'lucide-react';
+import { Save, Play, Zap, Send, ChevronRight, ChevronLeft, Maximize2, Minimize2, History } from 'lucide-react';
 import { useFlowBuilderStore } from '../store/flowBuilderStore';
 import { flowService } from '../services/flow.service';
 import { FlowSidebar } from './FlowSidebar';
 import { FlowCanvas } from './FlowCanvas';
 import { LevelPropertiesPanel } from './LevelPropertiesPanel';
 import { BranchingRules } from './BranchingRules';
+import { VersionHistory } from '../../versions/components/VersionHistory';
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -35,6 +37,7 @@ export function FlowBuilder() {
 
   const [isTestDialogOpen, setIsTestDialogOpen] = useState(false);
   const [isTriggersDialogOpen, setIsTriggersDialogOpen] = useState(false);
+  const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false);
   const isReadOnly = currentFlow?.status === 'PUBLISHED';
 
@@ -483,6 +486,16 @@ export function FlowBuilder() {
           )}
         </div>
         <div className="flex items-center gap-3">
+          {currentFlow && currentFlow.id && (
+            <Button
+              onClick={() => setIsVersionHistoryOpen(true)}
+              variant="outline"
+              size="default"
+            >
+              <History className="size-4" />
+              Version History
+            </Button>
+          )}
           <Button
             onClick={() => setIsFocusMode((prev) => !prev)}
             variant="outline"
@@ -682,6 +695,18 @@ export function FlowBuilder() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Version History Dialog */}
+      {currentFlow && currentFlow.id && (
+        <Dialog open={isVersionHistoryOpen} onOpenChange={setIsVersionHistoryOpen}>
+          <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Version History: {currentFlow.name}</DialogTitle>
+            </DialogHeader>
+            <VersionHistory entityType="Flow" entityId={currentFlow.id} />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

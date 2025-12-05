@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { flowController } from './flow.controller';
 import { authenticateToken } from '../auth/auth.middleware';
+import { requireDeveloper, canEditFlow } from '../../common/middleware/authorization.middleware';
 import { validate } from '../../common/middleware/validation.middleware';
 import {
   createFlowSchema,
@@ -22,37 +23,43 @@ const router = Router();
 router.use(authenticateToken);
 
 // Flow CRUD operations
-router.post('/', validate(createFlowSchema), flowController.createFlow);
+// CREATE/DELETE - Only developers
+router.post('/', requireDeveloper, validate(createFlowSchema), flowController.createFlow);
+router.delete('/:id', requireDeveloper, flowController.deleteFlow);
+
+// UPDATE - Developers can do everything, clients can do limited edits
+router.put('/:id', requireDeveloper, validate(updateFlowSchema), flowController.updateFlow);
+
+// READ - All authenticated users
 router.get('/', flowController.listFlows);
 router.get('/:id', flowController.getFlow);
-router.put('/:id', validate(updateFlowSchema), flowController.updateFlow);
-router.delete('/:id', flowController.deleteFlow);
 
-// Flow actions
-router.post('/:id/publish', flowController.publishFlow);
-router.post('/:id/duplicate', validate(duplicateFlowSchema), flowController.duplicateFlow);
+// Flow actions - Only developers
+router.post('/:id/publish', requireDeveloper, flowController.publishFlow);
+router.post('/:id/duplicate', requireDeveloper, validate(duplicateFlowSchema), flowController.duplicateFlow);
 
 // Level operations
 // IMPORTANT: More specific routes must come before parameterized routes
 // Otherwise Express will match "reorder" as a :levelId parameter
-router.post('/:id/levels', validate(createFlowLevelSchema), flowController.addLevel);
-router.put('/:id/levels/reorder', validate(reorderLevelsSchema), flowController.reorderLevels);
-router.put('/:id/levels/:levelId', validate(updateFlowLevelSchema), flowController.updateLevel);
-router.delete('/:id/levels/:levelId', flowController.deleteLevel);
+// CREATE/DELETE/REORDER - Only developers
+router.post('/:id/levels', canEditFlow(true), validate(createFlowLevelSchema), flowController.addLevel);
+router.put('/:id/levels/reorder', requireDeveloper, validate(reorderLevelsSchema), flowController.reorderLevels);
+router.put('/:id/levels/:levelId', canEditFlow(true), validate(updateFlowLevelSchema), flowController.updateLevel);
+router.delete('/:id/levels/:levelId', requireDeveloper, flowController.deleteLevel);
 
-// Task assignment to level
-router.post('/:id/levels/:levelId/tasks', validate(addTaskToLevelSchema), flowController.addTaskToLevel);
-router.delete('/:id/levels/:levelId/tasks/:taskId', flowController.removeTaskFromLevel);
-router.put('/:id/levels/:levelId/tasks/reorder', validate(reorderTasksInLevelSchema), flowController.reorderTasksInLevel);
+// Task assignment to level - Clients can change assignments
+router.post('/:id/levels/:levelId/tasks', canEditFlow(true), validate(addTaskToLevelSchema), flowController.addTaskToLevel);
+router.delete('/:id/levels/:levelId/tasks/:taskId', canEditFlow(true), flowController.removeTaskFromLevel);
+router.put('/:id/levels/:levelId/tasks/reorder', canEditFlow(true), validate(reorderTasksInLevelSchema), flowController.reorderTasksInLevel);
 
-// Role assignment to level
-router.post('/:id/levels/:levelId/roles', validate(addRoleToLevelSchema), flowController.addRoleToLevel);
-router.delete('/:id/levels/:levelId/roles/:roleId', flowController.removeRoleFromLevel);
+// Role assignment to level - Clients can change assignments
+router.post('/:id/levels/:levelId/roles', canEditFlow(true), validate(addRoleToLevelSchema), flowController.addRoleToLevel);
+router.delete('/:id/levels/:levelId/roles/:roleId', canEditFlow(true), flowController.removeRoleFromLevel);
 
-// Branch operations
-router.post('/:id/branches', validate(createFlowBranchSchema), flowController.createBranch);
-router.put('/:id/branches/:branchId', validate(updateFlowBranchSchema), flowController.updateBranch);
-router.delete('/:id/branches/:branchId', flowController.deleteBranch);
+// Branch operations - Only developers
+router.post('/:id/branches', requireDeveloper, validate(createFlowBranchSchema), flowController.createBranch);
+router.put('/:id/branches/:branchId', requireDeveloper, validate(updateFlowBranchSchema), flowController.updateBranch);
+router.delete('/:id/branches/:branchId', requireDeveloper, flowController.deleteBranch);
 
 export default router;
 

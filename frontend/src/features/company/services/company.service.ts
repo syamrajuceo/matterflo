@@ -38,6 +38,18 @@ export interface User {
   companyId?: string | null;
 }
 
+export interface ICompany {
+  id: string;
+  name: string;
+  domain: string | null;
+  logo: string | null;
+  isActive: boolean;
+  primaryColor: string;
+  secondaryColor: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 class CompanyService {
   // Departments
   async createDepartment(data: {
@@ -136,6 +148,37 @@ class CompanyService {
   async getUsers(): Promise<User[]> {
     const response = await axios.get<{ success: true; data: { users: User[] } }>('/company/users');
     return response.data.data.users;
+  }
+
+  // Company switching (for developers)
+  async getAccessibleCompanies(): Promise<ICompany[]> {
+    const response = await axios.get<{ success: true; data: ICompany[] }>('/company/accessible');
+    return response.data.data;
+  }
+
+  async switchCompanyContext(companyId: string): Promise<ICompany> {
+    const response = await axios.post<{ success: true; data: ICompany }>(
+      `/company/switch/${companyId}`
+    );
+    return response.data.data;
+  }
+
+  // Company settings (white-labeling)
+  async getCompany(): Promise<ICompany> {
+    const response = await axios.get<{ success: true; data: ICompany }>('/company');
+    return response.data.data;
+  }
+
+  async updateCompany(data: {
+    name?: string;
+    domain?: string | null;
+    logo?: string | null;
+    primaryColor?: string;
+    secondaryColor?: string;
+    isActive?: boolean;
+  }): Promise<ICompany> {
+    const response = await axios.put<{ success: true; data: ICompany }>('/company', data);
+    return response.data.data;
   }
 }
 

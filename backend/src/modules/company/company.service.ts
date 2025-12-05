@@ -4,6 +4,7 @@ import {
   IDepartment,
   IDepartmentTreeNode,
   IRole,
+  ICompany,
   ICreateDepartmentRequest,
   IUpdateDepartmentRequest,
   ICreateRoleRequest,
@@ -21,6 +22,21 @@ class CompanyService {
       companyId: dep.companyId,
       createdAt: dep.createdAt,
       updatedAt: dep.updatedAt,
+    };
+  }
+
+  // Map Prisma Company to ICompany
+  private mapCompany(company: any): ICompany {
+    return {
+      id: company.id,
+      name: company.name,
+      domain: company.domain,
+      logo: company.logo,
+      isActive: company.isActive,
+      primaryColor: company.primaryColor || '#3B82F6',
+      secondaryColor: company.secondaryColor || '#1A1F2E',
+      createdAt: company.createdAt,
+      updatedAt: company.updatedAt,
     };
   }
 
@@ -318,6 +334,26 @@ class CompanyService {
   // Create role
   async createRole(data: ICreateRoleRequest): Promise<IRole> {
     try {
+      // If a department is provided, validate it first and use its companyId
+      // This ensures the role is created for the same company as the department
+      if (data.departmentId) {
+        const dept = await prisma.department.findUnique({
+          where: { id: data.departmentId },
+          include: { company: true },
+        });
+        if (!dept) {
+          throw new ValidationError('Department not found', {
+            departmentId: data.departmentId,
+          });
+        }
+        
+        // Use the department's companyId for role creation
+        // This ensures consistency - role and department belong to the same company
+        data.companyId = dept.companyId;
+        
+        console.log(`[Role Creation] Using department's company: "${dept.company?.name || dept.companyId}" for role creation.`);
+      }
+
       // Validate company
       const company = await prisma.company.findUnique({
         where: { id: data.companyId },
@@ -326,7 +362,7 @@ class CompanyService {
         throw new NotFoundError('Company');
       }
 
-      // Validate department (if provided)
+      // Validate department belongs to the company (should always pass now, but keep for safety)
       if (data.departmentId) {
         const dept = await prisma.department.findUnique({
           where: { id: data.departmentId },
@@ -345,19 +381,27 @@ class CompanyService {
         throw new ValidationError('Role name cannot be empty', { name: data.name });
       }
 
-      // Check if role name already exists in company
-      const existingRole = await prisma.role.findFirst({
+      // Check if role name already exists in company (case-insensitive)
+      // Get all roles for the company and check case-insensitively
+      const allRoles = await prisma.role.findMany({
         where: {
           companyId: data.companyId,
-          name: trimmedName,
         },
       });
 
+      const existingRole = allRoles.find(
+        (r) => r.name.toLowerCase().trim() === trimmedName.toLowerCase()
+      );
+
       if (existingRole) {
-        throw new ValidationError(`A role with the name "${trimmedName}" already exists in this company`, {
-          name: trimmedName,
-          companyId: data.companyId,
-        });
+        throw new ValidationError(
+          `A role with the name "${existingRole.name}" already exists in this company. Role names must be unique (case-insensitive).`,
+          {
+            name: trimmedName,
+            existingName: existingRole.name,
+            companyId: data.companyId,
+          }
+        );
       }
 
       // Ensure permissions is a valid object
@@ -423,12 +467,10 @@ class CompanyService {
       }
 
       // Compute employee count for this role
-      const employeeCount = await prisma.user.count({
-        where: {
-          companyId: data.companyId,
-          role: data.name as any, // Map role.name to User.role enum
-        },
-      });
+      // Note: Role is a separate entity from User.role enum
+      // For now, newly created roles have 0 employees assigned
+      // In the future, if user-role assignments are implemented, this should query that relationship
+      const employeeCount = 0;
 
       return this.mapRole(role, employeeCount);
     } catch (error) {
@@ -459,21 +501,29 @@ class CompanyService {
         }
         const existingNameTrimmed = existing.name.trim();
         
-        // Only check for duplicates if the name is actually changing
-        if (trimmedName !== existingNameTrimmed) {
-          const duplicateRole = await prisma.role.findFirst({
+        // Only check for duplicates if the name is actually changing (case-insensitive)
+        if (trimmedName.toLowerCase() !== existingNameTrimmed.toLowerCase()) {
+          // Get all roles for the company and check case-insensitively
+          const allRoles = await prisma.role.findMany({
             where: {
               companyId: existing.companyId,
-              name: trimmedName,
               id: { not: id }, // Exclude current role
             },
           });
 
+          const duplicateRole = allRoles.find(
+            (r) => r.name.toLowerCase().trim() === trimmedName.toLowerCase()
+          );
+
           if (duplicateRole) {
-            throw new ValidationError(`A role with the name "${trimmedName}" already exists in this company`, {
-              name: trimmedName,
-              companyId: existing.companyId,
-            });
+            throw new ValidationError(
+              `A role with the name "${duplicateRole.name}" already exists in this company. Role names must be unique (case-insensitive).`,
+              {
+                name: trimmedName,
+                existingName: duplicateRole.name,
+                companyId: existing.companyId,
+              }
+            );
           }
         }
       }
@@ -525,12 +575,8 @@ class CompanyService {
       // Only update if there's something to update
       if (Object.keys(updateData).length === 0) {
         // No changes, return existing role
-        const employeeCount = await prisma.user.count({
-          where: {
-            companyId: existing.companyId,
-            role: existing.name as any,
-          },
-        });
+        // Note: Role is a separate entity from User.role enum, so employeeCount is 0 for now
+        const employeeCount = 0;
         return this.mapRole(existing, employeeCount);
       }
 
@@ -554,19 +600,10 @@ class CompanyService {
       }
 
       // Recompute employee count
-      let employeeCount = 0;
-      try {
-        employeeCount = await prisma.user.count({
-          where: {
-            companyId: role.companyId,
-            role: role.name as any,
-          },
-        });
-      } catch (countError) {
-        // If counting fails (e.g., role.name doesn't match UserRole enum), just use 0
-        console.warn('Failed to count employees for role:', countError);
-        employeeCount = 0;
-      }
+      // Note: Role is a separate entity from User.role enum
+      // For now, newly created/updated roles have 0 employees assigned
+      // In the future, if user-role assignments are implemented, this should query that relationship
+      const employeeCount = 0;
 
       return this.mapRole(role, employeeCount);
     } catch (error) {
@@ -663,21 +700,12 @@ class CompanyService {
       });
 
       // Attach employee counts to each role
+      // Note: Role is a separate entity from User.role enum
+      // For now, all roles have 0 employees assigned
+      // In the future, if user-role assignments are implemented, this should query that relationship
       const rolesWithCounts: IRole[] = [];
       for (const role of roles) {
-        try {
-          const employeeCount = await prisma.user.count({
-            where: {
-              companyId: role.companyId,
-              role: role.name as any,
-            },
-          });
-          rolesWithCounts.push(this.mapRole(role, employeeCount));
-        } catch (err) {
-          // If employee count query fails, still include the role with 0 count
-          console.error(`Error getting employee count for role ${role.id}:`, err);
-          rolesWithCounts.push(this.mapRole(role, 0));
-        }
+        rolesWithCounts.push(this.mapRole(role, 0));
       }
 
       return rolesWithCounts;
@@ -703,15 +731,12 @@ class CompanyService {
       });
 
       // Attach employee counts to each role
+      // Note: Role is a separate entity from User.role enum
+      // For now, all roles have 0 employees assigned
+      // In the future, if user-role assignments are implemented, this should query that relationship
       const rolesWithCounts: IRole[] = [];
       for (const role of roles) {
-        const employeeCount = await prisma.user.count({
-          where: {
-            companyId: role.companyId,
-            role: role.name as any,
-          },
-        });
-        rolesWithCounts.push(this.mapRole(role, employeeCount));
+        rolesWithCounts.push(this.mapRole(role, 0));
       }
 
       return rolesWithCounts;
@@ -744,6 +769,171 @@ class CompanyService {
       return users;
     } catch (error) {
       console.error('Error getting users:', error);
+      throw error;
+    }
+  }
+
+
+  /**
+   * Get all companies accessible by a developer
+   */
+  async getAccessibleCompanies(userId: string): Promise<ICompany[]> {
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        include: { company: true },
+      });
+
+      if (!user) {
+        throw new NotFoundError('User');
+      }
+
+      // Developers can see all companies
+      if (user.role === 'DEVELOPER') {
+        const companies = await prisma.company.findMany({
+          where: { isActive: true },
+          orderBy: { name: 'asc' },
+        });
+
+        return companies.map(c => this.mapCompany(c));
+      }
+
+      // Non-developers only see their own company
+      if (user.companyId) {
+        const company = await prisma.company.findUnique({
+          where: { id: user.companyId },
+        });
+
+        return company ? [this.mapCompany(company)] : [];
+      }
+
+      return [];
+    } catch (error) {
+      console.error('Error getting accessible companies:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Switch active company context for a developer
+   */
+  async switchCompanyContext(userId: string, companyId: string): Promise<ICompany> {
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+      });
+
+      if (!user) {
+        throw new NotFoundError('User');
+      }
+
+      // Only developers can switch companies
+      if (user.role !== 'DEVELOPER') {
+        throw new ValidationError('Only developers can switch company context', { role: user.role });
+      }
+
+      const company = await prisma.company.findUnique({
+        where: { id: companyId },
+      });
+
+      if (!company) {
+        throw new NotFoundError('Company');
+      }
+
+      return this.mapCompany(company);
+    } catch (error) {
+      console.error('Error switching company context:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get company by ID
+   */
+  async getCompany(companyId: string): Promise<ICompany> {
+    try {
+      const company = await prisma.company.findUnique({
+        where: { id: companyId },
+      });
+
+      if (!company) {
+        throw new NotFoundError('Company');
+      }
+
+      return this.mapCompany(company);
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+      console.error('Error getting company:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update company settings (white-labeling)
+   */
+  async updateCompany(
+    companyId: string,
+    data: {
+      name?: string;
+      domain?: string | null;
+      logo?: string | null;
+      primaryColor?: string;
+      secondaryColor?: string;
+      isActive?: boolean;
+    }
+  ): Promise<ICompany> {
+    try {
+      const existing = await prisma.company.findUnique({
+        where: { id: companyId },
+      });
+
+      if (!existing) {
+        throw new NotFoundError('Company');
+      }
+
+      // Validate domain uniqueness if provided
+      if (data.domain !== undefined && data.domain !== null && data.domain !== existing.domain) {
+        const domainExists = await prisma.company.findFirst({
+          where: {
+            domain: data.domain,
+            id: { not: companyId },
+          },
+        });
+
+        if (domainExists) {
+          throw new ValidationError('Domain already in use by another company', { domain: data.domain });
+        }
+      }
+
+      // Validate color format if provided
+      if (data.primaryColor && !/^#[0-9A-Fa-f]{6}$/.test(data.primaryColor)) {
+        throw new ValidationError('Primary color must be a valid hex color (e.g., #3B82F6)', { primaryColor: data.primaryColor });
+      }
+
+      if (data.secondaryColor && !/^#[0-9A-Fa-f]{6}$/.test(data.secondaryColor)) {
+        throw new ValidationError('Secondary color must be a valid hex color (e.g., #1A1F2E)', { secondaryColor: data.secondaryColor });
+      }
+
+      const updated = await prisma.company.update({
+        where: { id: companyId },
+        data: {
+          ...(data.name !== undefined && { name: data.name }),
+          ...(data.domain !== undefined && { domain: data.domain }),
+          ...(data.logo !== undefined && { logo: data.logo }),
+          ...(data.primaryColor !== undefined && { primaryColor: data.primaryColor }),
+          ...(data.secondaryColor !== undefined && { secondaryColor: data.secondaryColor }),
+          ...(data.isActive !== undefined && { isActive: data.isActive }),
+        },
+      });
+
+      return this.mapCompany(updated);
+    } catch (error) {
+      if (error instanceof NotFoundError || error instanceof ValidationError) {
+        throw error;
+      }
+      console.error('Error updating company:', error);
       throw error;
     }
   }

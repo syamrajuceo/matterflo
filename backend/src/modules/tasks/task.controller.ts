@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { taskService } from './task.service';
 import { successResponse } from '../../common/utils/response';
+import { getCompanyIdForUser } from '../../common/utils/company-helper';
 
 class TaskController {
   // POST /api/tasks
@@ -15,11 +16,21 @@ class TaskController {
         });
       }
 
-      let companyId = req.user.companyId;
+      // Use helper to get companyId (handles DEVELOPER users with x-company-id header)
+      let companyId = await getCompanyIdForUser(req.user, req);
       const createdById = req.user.id;
 
-      // If user doesn't have a company, create one automatically
+      console.log('[TaskController] createTask - User:', {
+        userId: req.user.id,
+        role: req.user.role,
+        userCompanyId: req.user.companyId,
+        resolvedCompanyId: companyId,
+        xCompanyIdHeader: req.headers['x-company-id'],
+      });
+
+      // If user doesn't have a company (and helper didn't find one), create one automatically
       if (!companyId) {
+        console.log('[TaskController] createTask - No companyId found, creating one automatically');
         const { prisma } = await import('../../common/config/database.config');
         const emailDomain = req.user.email.split('@')[1];
         const companyDomain = `${emailDomain.split('.')[0]}.local`;
@@ -38,11 +49,13 @@ class TaskController {
           });
         }
 
-        // Update user with companyId
-        await prisma.user.update({
-          where: { id: req.user.id },
-          data: { companyId: company.id },
-        });
+        // Update user with companyId (only if not DEVELOPER, as DEVELOPER users don't have companyId)
+        if (req.user.role !== 'DEVELOPER') {
+          await prisma.user.update({
+            where: { id: req.user.id },
+            data: { companyId: company.id },
+          });
+        }
 
         companyId = company.id;
       }
@@ -91,9 +104,19 @@ class TaskController {
         });
       }
 
-      const companyId = req.user.companyId;
+      // Use helper to get companyId (handles DEVELOPER users with x-company-id header)
+      const companyId = await getCompanyIdForUser(req.user, req);
+      
+      console.log('[TaskController] listTasks - User:', {
+        userId: req.user.id,
+        role: req.user.role,
+        userCompanyId: req.user.companyId,
+        resolvedCompanyId: companyId,
+        xCompanyIdHeader: req.headers['x-company-id'],
+      });
       
       if (!companyId) {
+        console.log('[TaskController] listTasks - No companyId found, returning empty result');
         // Return empty result if user has no company
         return res.json(successResponse({
           tasks: [],
@@ -111,6 +134,7 @@ class TaskController {
         limit: parseInt(limit as string)
       });
 
+      console.log('[TaskController] listTasks - Found tasks:', result.tasks.length, 'for company:', companyId);
       res.json(successResponse(result));
     } catch (error) {
       next(error);
@@ -194,6 +218,43 @@ class TaskController {
   deleteTask = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
+      
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          error: { code: 'UNAUTHORIZED', message: 'Authentication required' }
+        });
+      }
+
+      // Verify the task exists and belongs to the user's company context
+      const task = await taskService.getTask(id);
+      if (!task) {
+        return res.status(404).json({
+          success: false,
+          error: { code: 'NOT_FOUND', message: 'Task not found' }
+        });
+      }
+
+      // Use helper to get companyId (handles DEVELOPER users with x-company-id header)
+      const companyId = await getCompanyIdForUser(req.user, req);
+      
+      console.log('[TaskController] deleteTask - User:', {
+        userId: req.user.id,
+        role: req.user.role,
+        userCompanyId: req.user.companyId,
+        resolvedCompanyId: companyId,
+        taskCompanyId: task.companyId,
+        xCompanyIdHeader: req.headers['x-company-id'],
+      });
+
+      // Verify task belongs to the user's company context
+      if (companyId && task.companyId !== companyId) {
+        return res.status(403).json({
+          success: false,
+          error: { code: 'FORBIDDEN', message: 'You do not have permission to delete this task' }
+        });
+      }
+
       await taskService.deleteTask(id);
 
       res.json(successResponse(null));

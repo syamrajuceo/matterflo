@@ -24,7 +24,7 @@ interface ActionBuilderProps {
   onChange: (actions: IAction[]) => void;
 }
 
-const ACTION_TYPES: ActionType[] = ['email', 'flow', 'database', 'webhook', 'task'];
+const ACTION_TYPES: ActionType[] = ['email', 'flow', 'database', 'webhook', 'task', 'pdf'];
 
 function createDefaultAction(type: ActionType): IAction {
   switch (type) {
@@ -62,6 +62,14 @@ function createDefaultAction(type: ActionType): IAction {
         type: 'task',
         taskId: '',
         priority: 'normal',
+      };
+    case 'pdf':
+      return {
+        type: 'pdf',
+        sourceType: 'task',
+        filename: 'document-{{timestamp}}.pdf',
+        includeData: true,
+        attachToEmail: false,
       };
   }
 }

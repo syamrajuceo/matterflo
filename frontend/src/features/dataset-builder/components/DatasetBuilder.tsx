@@ -15,6 +15,7 @@ import { datasetService, type DatasetSection } from '../services/dataset.service
 import { DatasetList } from './DatasetList';
 import { SectionEditor } from './SectionEditor';
 import { DatasetPreview } from './DatasetPreview';
+import { VersionHistory } from '../../versions/components/VersionHistory';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -22,6 +23,13 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
+import { History } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 type SectionType = DatasetSection['type'];
 
@@ -46,6 +54,7 @@ export const DatasetBuilder = () => {
   } = useDatasetStore();
   const { showToast } = useToast();
   const [newSectionType, setNewSectionType] = useState<SectionType>('data-table');
+  const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -192,6 +201,18 @@ export const DatasetBuilder = () => {
             </Badge>
           )}
         </div>
+        <div className="flex items-center gap-2">
+          {currentDataset && currentDataset.id && (
+            <Button
+              onClick={() => setIsVersionHistoryOpen(true)}
+              variant="outline"
+              size="sm"
+            >
+              <History className="h-4 w-4 mr-2" />
+              Version History
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="flex min-h-0 flex-1">
@@ -301,6 +322,18 @@ export const DatasetBuilder = () => {
           <SectionEditor datasetId={currentDataset?.id ?? null} />
         </div>
       </div>
+
+      {/* Version History Dialog */}
+      {currentDataset && currentDataset.id && (
+        <Dialog open={isVersionHistoryOpen} onOpenChange={setIsVersionHistoryOpen}>
+          <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Version History: {currentDataset.name}</DialogTitle>
+            </DialogHeader>
+            <VersionHistory entityType="Dataset" entityId={currentDataset.id} />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };

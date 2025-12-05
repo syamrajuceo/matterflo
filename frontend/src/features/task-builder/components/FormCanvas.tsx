@@ -1,8 +1,10 @@
-import { Plus, GripVertical, Trash2 } from 'lucide-react';
+import { Plus, GripVertical, Trash2, Pencil, Check, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { useTaskBuilderStore } from '../store/taskBuilderStore';
 import { taskService } from '../services/task.service';
 import { useToast } from '@/components/ui/use-toast';
 import type { ITaskField } from '../types/task.types';
+import { Input } from '@/components/ui/input';
 import {
   DndContext,
   closestCenter,
@@ -111,6 +113,7 @@ export function FormCanvas() {
     deleteField,
     reorderFields,
     setHasUnsavedChanges,
+    setCurrentTask,
   } = useTaskBuilderStore();
 
   const { showToast } = useToast();
@@ -177,6 +180,17 @@ export function FormCanvas() {
     setHasUnsavedChanges(true);
   };
 
+  // All hooks must be called before any early returns
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [taskName, setTaskName] = useState(currentTask?.name || '');
+
+  // Update local name when task changes
+  useEffect(() => {
+    if (currentTask) {
+      setTaskName(currentTask.name);
+    }
+  }, [currentTask?.id, currentTask?.name]);
+
   if (!currentTask) {
     return (
       <div className="flex flex-1 items-center justify-center bg-white">
@@ -192,12 +206,101 @@ export function FormCanvas() {
 
   const fieldIds = currentTask.fields.map((f) => f.id);
 
+  const handleNameEdit = async () => {
+    if (!currentTask || !currentTask.id) return;
+    
+    if (taskName.trim() === '') {
+      setTaskName(currentTask.name);
+      setIsEditingName(false);
+      return;
+    }
+
+    if (taskName === currentTask.name) {
+      setIsEditingName(false);
+      return;
+    }
+
+    try {
+      await taskService.updateTask(currentTask.id, { name: taskName.trim() });
+      const updatedTask = await taskService.getTask(currentTask.id);
+      setCurrentTask(updatedTask);
+      setHasUnsavedChanges(false);
+      setIsEditingName(false);
+      
+      // Dispatch event to refresh task list in sidebar
+      window.dispatchEvent(new CustomEvent('task:updated', { detail: { taskId: currentTask.id } }));
+      
+      showToast({
+        title: 'Task name updated',
+        description: 'The task name has been saved.',
+        status: 'success',
+      });
+    } catch (error) {
+      console.error('Failed to update task name:', error);
+      setTaskName(currentTask.name);
+      setIsEditingName(false);
+      showToast({
+        title: 'Failed to update task name',
+        description: 'Please try again.',
+        status: 'error',
+      });
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setTaskName(currentTask.name);
+    setIsEditingName(false);
+  };
+
   return (
     <div className="flex flex-1 flex-col overflow-hidden bg-white">
       {/* Header */}
       <div className="border-b border-slate-200 p-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-xs font-bold text-slate-700 uppercase tracking-wide">{currentTask.name}</h2>
+          {isEditingName ? (
+            <div className="flex items-center gap-2 flex-1">
+              <Input
+                value={taskName}
+                onChange={(e) => setTaskName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleNameEdit();
+                  } else if (e.key === 'Escape') {
+                    handleCancelEdit();
+                  }
+                }}
+                className="h-7 text-xs font-bold uppercase tracking-wide border-slate-300 focus:border-blue-500"
+                autoFocus
+              />
+              <button
+                onClick={handleNameEdit}
+                className="p-1 text-green-600 hover:bg-green-50 rounded"
+                title="Save"
+              >
+                <Check className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={handleCancelEdit}
+                className="p-1 text-red-600 hover:bg-red-50 rounded"
+                title="Cancel"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 flex-1">
+              <h2 className="text-xs font-bold text-slate-700 uppercase tracking-wide">{currentTask.name}</h2>
+              {currentTask.status !== 'PUBLISHED' && (
+                <button
+                  onClick={() => setIsEditingName(true)}
+                  className="p-0.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded"
+                  title="Edit task name"
+                >
+                  <Pencil className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+          )}
           <div className="flex items-center gap-1.5">
             <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-medium text-slate-500">
               {currentTask.status}

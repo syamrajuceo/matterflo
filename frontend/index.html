@@ -4,7 +4,108 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+    <meta name="description" content="ERP Builder - Build your business processes without coding" />
+    <title>ERP Builder</title>
+    <!-- Early console filter - runs before any scripts load -->
+    <script>
+      (function() {
+        'use strict';
+        
+        // Check if we're in development mode
+        // Vite sets import.meta.env.DEV, but we need to check before modules load
+        const isDev = window.location.hostname === 'localhost' || 
+                     window.location.hostname === '127.0.0.1' || 
+                     window.location.hostname.includes('localhost') ||
+                     window.location.port !== ''; // Vite dev server uses a port
+        
+        if (isDev) {
+          // Patterns to filter (browser extension errors)
+          const extensionPatterns = [
+            /chrome-extension:\/\//i,
+            /moz-extension:\/\//i,
+            /safari-extension:\/\//i,
+            /Denying load of/i,
+            /web_accessible_resources/i,
+            /ERR_FILE_NOT_FOUND.*extension/i,
+            /chrome-extension:\/\/invalid/i,
+            /extensionState\.js/i,
+            /heuristicsRedefinitions\.js/i,
+            /translation\.json/i,
+            /contentScript\.bundle\.js/i,
+            /net::ERR_FAILED.*extension/i,
+            /Failed to load resource.*extension/i,
+          ];
+          
+          // Helper to check if message should be filtered
+          function shouldFilter() {
+            const args = Array.from(arguments);
+            return args.some(arg => {
+              const str = String(arg || '');
+              return extensionPatterns.some(pattern => pattern.test(str));
+            });
+          }
+          
+          // Store original methods
+          const originalError = console.error;
+          const originalWarn = console.warn;
+          const originalLog = console.log;
+          
+          // Override console.error
+          console.error = function() {
+            const args = Array.from(arguments);
+            if (!shouldFilter.apply(null, args)) {
+              originalError.apply(console, args);
+            }
+          };
+          
+          // Override console.warn
+          console.warn = function() {
+            const args = Array.from(arguments);
+            if (!shouldFilter.apply(null, args)) {
+              originalWarn.apply(console, args);
+            }
+          };
+          
+          // Override console.log (some extensions log errors here)
+          console.log = function() {
+            const args = Array.from(arguments);
+            // Only filter if it looks like an error message
+            if (!shouldFilter.apply(null, args)) {
+              originalLog.apply(console, args);
+            }
+          };
+          
+          // Intercept window.onerror
+          const originalOnError = window.onerror;
+          window.onerror = function(message, source, lineno, colno, error) {
+            const errorMessage = String(message || '') + ' ' + String(source || '');
+            if (shouldFilter(errorMessage)) {
+              return true; // Suppress error
+            }
+            if (originalOnError) {
+              return originalOnError.apply(this, arguments);
+            }
+            return false;
+          };
+          
+          // Intercept unhandled promise rejections
+          window.addEventListener('unhandledrejection', function(event) {
+            const reason = event.reason;
+            const message = reason?.message || String(reason || '');
+            const stack = reason?.stack || '';
+            if (shouldFilter(message + ' ' + stack)) {
+              event.preventDefault(); // Suppress error
+              return;
+            }
+          }, true); // Use capture phase to catch early
+          
+          // Log that filter is active (after a short delay to avoid filtering this message)
+          setTimeout(function() {
+            originalLog.call(console, '%c🔇 Console filter active', 'color: #888; font-style: italic;', 'Browser extension errors are being filtered');
+          }, 100);
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
